@@ -1,0 +1,158 @@
+# Primary dgem GPU Engine Deployment (Spot G4 with Fast-Start Snapshot + ComputeClass Fallback)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgem-engine
+  namespace: dgem
+  labels:
+    app: dgem-engine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dgem-engine
+  template:
+    metadata:
+      labels:
+        app: dgem-engine
+    spec:
+      serviceAccountName: dgem-engine-ksa
+      # Route via Custom ComputeClass (Spot G4 -> DWS Flex-Start G4 -> On-Demand G4 fallback + active migration)
+      nodeSelector:
+        cloud.google.com/compute-class: dgem-g4-priority
+      tolerations:
+        - key: "cloud.google.com/compute-class"
+          operator: "Equal"
+          value: "dgem-g4-priority"
+          effect: "NoSchedule"
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/gke-spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/gke-queued"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        - key: "sandbox.gke.io/runtime"
+          operator: "Equal"
+          value: "gvisor"
+          effect: "NoSchedule"
+      containers:
+        - name: dgemma
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dgem-images/dgemma:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: vllm-internal
+              containerPort: 8000
+          env:
+            # Local pre-hydrated snapshot path containing NVFP4 weights (eliminates GCS cold download)
+            - name: MODEL
+              value: "/mnt/weights/diffusiongemma-26B-A4B-it-NVFP4"
+            # Fallback GCS URI if running without the pre-hydrated PVC
+            - name: DGEM_WEIGHTS_URI
+              value: "gs://${PROJECT_ID}-dgem-weights/models/diffusiongemma-26B-A4B-it-NVFP4"
+            # Pre-compiled FlashInfer/Triton Blackwell SM120 JIT kernel cache
+            - name: JIT_CACHE_TAR
+              value: "/mnt/weights/jit-cache.tar.gz"
+            # Copy 17.53 GiB NVFP4 safetensors into /dev/shm RAM disk for fast vLLM weight load
+            - name: COPY_TO_SHM
+              value: "1"
+            - name: PORT
+              value: "8080"
+            - name: ROLE
+              value: "default"
+            # G4 (NVIDIA RTX PRO 6000 Blackwell 96GB) tuned vLLM & discrete diffusion parameters
+            - name: CANVAS
+              value: "128"
+            - name: ENFORCE_EAGER
+              value: "1"
+            - name: DISABLE_MM
+              value: "0"
+            - name: GPU_UTIL
+              value: "0.85"
+            - name: KV_CACHE_GB
+              value: "12"
+            - name: MAX_SEQS
+              value: "32"
+            - name: MAX_MODEL_LEN
+              value: "8192"
+            - name: DEFAULT_SAMPLES
+              value: "1"
+            - name: MAX_INFLIGHT
+              value: "8"
+            - name: DGEM_MAX_Q_PER_CALL
+              value: "8"
+            # Domain-calibrated global temperature from ConfigMap
+            - name: TEMPERATURE
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: fitted_temperature
+          resources:
+            requests:
+              cpu: "16"
+              memory: "80Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "44"
+              memory: "160Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: weights-vol
+              mountPath: /mnt/weights
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+      volumes:
+        # 32 GiB RAM disk for COPY_TO_SHM=1 + NCCL/FlashInfer shared memory
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi
+        # Pre-hydrated Hyperdisk Balanced PVC from dgem-nvfp4-weights-snapshot
+        - name: weights-vol
+          persistentVolumeClaim:
+            claimName: dgem-nvfp4-weights-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgem-engine
+  namespace: dgem
+  labels:
+    app: dgem-engine
+spec:
+  type: ClusterIP
+  selector:
+    app: dgem-engine
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

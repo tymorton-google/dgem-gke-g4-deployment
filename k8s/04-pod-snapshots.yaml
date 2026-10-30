@@ -1,0 +1,52 @@
+# GKE Pod Snapshots configuration (GA podsnapshot.gke.io/v1 schema):
+# References:
+#   - https://cloud.google.com/kubernetes-engine/docs/concepts/pod-snapshots
+#   - https://cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots-prepare
+#   - https://cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots-trigger
+#
+# NOTE ON GPU HARDWARE COMPATIBILITY:
+#   - GKE Pod Snapshots require --enable-pod-snapshots on the cluster (GKE 1.35.3-gke.1234000+)
+#     and a gVisor sandbox node pool (--sandbox type=gvisor).
+#   - Currently, GKE Sandbox GPU checkpointing officially supports g2-standard-* (L4),
+#     a2-highgpu-1g / a2-ultragpu-1g (A100), and a3-highgpu-1g (H100), and does not support
+#     pods with PersistentVolumeClaim or gcsfuse mounts.
+#   - On g4-standard-48 (nvidia-rtx-pro-6000), use Secondary Boot Disks (CONTAINER_IMAGE_CACHE) +
+#     Hyperdisk VolumeSnapshots (03-weights-pvc-snapshot.yaml) + COPY_TO_SHM=1 as the primary
+#     Fast-Start mechanism today, and apply this manifest when running on g2/a2/a3 or once G4
+#     GPU checkpointing is enabled in GKE Sandbox.
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotStorageConfig
+metadata:
+  name: dgem-gcs-snapshot-storage
+  namespace: dgem
+spec:
+  snapshotStorageConfig:
+    gcs:
+      bucket: "${PROJECT_ID}-dgem-pod-snapshots"
+      path: "dgem-engine-v031"
+---
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotPolicy
+metadata:
+  name: dgem-engine-snapshot-policy
+  namespace: dgem
+spec:
+  storageConfigName: dgem-gcs-snapshot-storage
+  selector:
+    matchLabels:
+      app: dgem-engine
+  triggerConfig:
+    type: manual
+    postCheckpoint: resume
+  retentionConfig:
+    lastAccessTimeout: 7d
+---
+# Apply this resource once the first dgem-engine Pod reaches Ready (/health = 200 OK)
+# to capture the golden GPU + CPU process memory snapshot:
+apiVersion: podsnapshot.gke.io/v1
+kind: PodSnapshotManualTrigger
+metadata:
+  name: dgem-engine-golden-checkpoint
+  namespace: dgem
+spec:
+  targetPod: "${TARGET_POD_NAME}"

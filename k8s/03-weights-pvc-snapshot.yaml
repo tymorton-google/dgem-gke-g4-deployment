@@ -1,0 +1,92 @@
+# Fast-Start VolumeSnapshot & PVC for the 17.53 GiB DiffusionGemma 26B-A4B NVFP4
+# weights + warm FlashInfer/Triton Blackwell SM120 JIT compilation cache (jit-cache.tar.gz).
+# References:
+#   - https://cloud.google.com/compute/docs/accelerator-optimized-machines (G4 supports
+#     hyperdisk-balanced, hyperdisk-ml, hyperdisk-throughput; legacy pd-* is not supported)
+#   - https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/hyperdisk-ml
+#     (Multi-Zone ReadOnlyMany hyperdisk-ml hydrated from VolumeSnapshot with snapshot-type: images
+#     provides up to 11.9x faster weight loading across up to 2,500 Spot GPU nodes).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hyperdisk-balanced-dgem
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: hyperdisk-balanced
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+---
+# Multi-Zone ReadOnlyMany Hyperdisk ML StorageClass for multi-replica Spot G4 scaling
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hyperdisk-ml-multizone-dgem
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: hyperdisk-ml
+  provisioned-throughput-on-create: "2400Mi"
+  enable-multi-zone-provisioning: "true"
+mountOptions:
+  - read_ahead_kb=8192
+volumeBindingMode: Immediate
+allowVolumeExpansion: false
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: dgem-hyperdisk-snapshot-class
+driver: pd.csi.storage.gke.io
+deletionPolicy: Retain
+parameters:
+  snapshot-type: snapshots
+---
+# Image-backed VolumeSnapshotClass required when hydrating hyperdisk-ml from a snapshot/image
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: dgem-hyperdisk-ml-image-class
+driver: pd.csi.storage.gke.io
+deletionPolicy: Retain
+parameters:
+  snapshot-type: images
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotContent
+metadata:
+  name: dgem-nvfp4-weights-snapcontent
+spec:
+  deletionPolicy: Retain
+  driver: pd.csi.storage.gke.io
+  source:
+    snapshotHandle: projects/${PROJECT_ID}/global/snapshots/dgem-nvfp4-weights-snap
+  volumeSnapshotClassName: dgem-hyperdisk-snapshot-class
+  volumeSnapshotRef:
+    name: dgem-nvfp4-weights-snapshot
+    namespace: dgem
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: dgem-nvfp4-weights-snapshot
+  namespace: dgem
+spec:
+  volumeSnapshotClassName: dgem-hyperdisk-snapshot-class
+  source:
+    volumeSnapshotContentName: dgem-nvfp4-weights-snapcontent
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dgem-nvfp4-weights-pvc
+  namespace: dgem
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: hyperdisk-balanced-dgem
+  resources:
+    requests:
+      storage: 50Gi
+  dataSource:
+    name: dgem-nvfp4-weights-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io

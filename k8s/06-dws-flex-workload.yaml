@@ -1,0 +1,68 @@
+# Option B: DWS Flex-Start (Queued Provisioning) via Kueue ProvisioningRequest
+# Reference: https://cloud.google.com/kubernetes-engine/docs/how-to/provisioningrequest
+# Use this manifest when provisioning G4 GPUs via Dynamic Workload Scheduler (DWS) Flex-Start.
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: g4-dws-flex-flavor
+spec:
+  nodeLabels:
+    dgem.cloud.google.com/provisioning: dws-flex
+  nodeTaints:
+    - key: cloud.google.com/gke-queued
+      value: "true"
+      effect: NoSchedule
+    - key: nvidia.com/gpu
+      value: "present"
+      effect: NoSchedule
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ProvisioningRequestConfig
+metadata:
+  name: dgem-dws-config
+spec:
+  provisioningClassName: queued-provisioning.gke.io
+  managedResources:
+    - nvidia.com/gpu
+  parameters:
+    # Request DWS Flex-Start G4 allocation for 7 days (604800 seconds)
+    maxRunDurationSeconds: "604800"
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: dgem-dws-cluster-queue
+spec:
+  namespaceSelector: {}
+  resourceGroups:
+    - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+      flavors:
+        - name: g4-dws-flex-flavor
+          resources:
+            - name: "cpu"
+              nominalQuota: 192
+            - name: "memory"
+              nominalQuota: 720Gi
+            - name: "nvidia.com/gpu"
+              nominalQuota: 4
+  admissionChecks:
+    - dgem-dws-admission
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: AdmissionCheck
+metadata:
+  name: dgem-dws-admission
+spec:
+  controllerName: kueue.x-k8s.io/provisioning-request
+  parameters:
+    apiGroup: kueue.x-k8s.io
+    kind: ProvisioningRequestConfig
+    name: dgem-dws-config
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: LocalQueue
+metadata:
+  name: dgem-dws-local-queue
+  namespace: dgem
+spec:
+  clusterQueue: dgem-dws-cluster-queue

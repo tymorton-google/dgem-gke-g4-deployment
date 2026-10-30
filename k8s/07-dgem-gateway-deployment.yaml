@@ -1,0 +1,440 @@
+# Domain Calibration ConfigMap & Policy Templates + dgem Gateway Deployment
+# Configures fitted temperature T*, Hesitation % threshold, and Stage 2 escalation
+# to Gemini 3.5 Flash-Lite (gemini-3.5-flash-lite) on Vertex AI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dgem-calibration-config
+  namespace: dgem
+data:
+  fitted_temperature: "${FITTED_TEMPERATURE}"
+  cascade_model: "gemini-3.5-flash-lite"
+  cascade_models: "gemini-3.5-flash-lite,gemini-3.8-flash"
+  cascade_threshold: "${CASCADE_THRESHOLD}"
+  cascade_prior: "soft"
+
+  # 1. Calibrated Support Ticket Triage Policy Template
+  support_triage.json.tmpl: |
+    {
+      "name": "Support Ticket Triage (Calibrated)",
+      "description": "Domain-calibrated triage with post-hoc temperature fitting and Gemini 3.5 Flash-Lite Stage 2 cascade.",
+      "category": "routing",
+      "layout": "document_first",
+      "isolate": "auto",
+      "schema": {
+        "instructions": "Evaluate incoming customer operations tickets across urgency, owning team, and customer frustration.",
+        "temperature": {
+          "noul": 1.10,
+          "choice": 1.20,
+          "score": 1.15
+        },
+        "questions": [
+          {
+            "name": "urgent",
+            "type": "boolean",
+            "prompt": "Does this support ticket require immediate P0/P1 escalation due to outage, security risk, or billing block?"
+          },
+          {
+            "name": "team",
+            "type": "choice",
+            "prompt": "Which specialized engineering or operations team should own this ticket?",
+            "options": {
+              "A": "billing: duplicate charges, invoices, refunds, subscription renewals",
+              "B": "technical: API errors, latency, service outages, SDK bugs",
+              "C": "account: SSO/IAM lockouts, RBAC permissions, organization transfer",
+              "D": "security: suspected compromise, leaked credentials, abuse report"
+            }
+          },
+          {
+            "name": "sentiment",
+            "type": "score",
+            "prompt": "Rate customer frustration/escalation risk from 1 (calm inquiry) to 5 (critical churn/executive escalation).",
+            "scale_min": 1,
+            "scale_max": 5,
+            "levels": ["1", "2", "3", "4", "5"]
+          }
+        ],
+        "samples": {{ default 1 .samples | toJson }}
+      },
+      "state": {
+        "ticket": {{ default "No ticket text provided." .ticket | toJson }}
+      }
+    }
+
+  # 2. Calibrated Security Incident / SOC Alert Triage Policy Template
+  security_incident.json.tmpl: |
+    {
+      "name": "Security Alert Triage (Calibrated)",
+      "description": "Domain-calibrated SOC alert triage with post-hoc temperature fitting and Gemini 3.5 Flash-Lite Stage 2 cascade.",
+      "category": "security",
+      "layout": "document_first",
+      "isolate": "auto",
+      "schema": {
+        "instructions": "Evaluate security telemetry and SIEM alerts across immediate containment, MITRE ATT&CK classification, and severity.",
+        "temperature": {
+          "noul": 1.15,
+          "choice": 1.25,
+          "score": 1.10
+        },
+        "questions": [
+          {
+            "name": "contain_immediately",
+            "type": "boolean",
+            "prompt": "Does this security alert indicate active exploitation, credential exfiltration, or lateral movement requiring immediate automated containment?"
+          },
+          {
+            "name": "incident_class",
+            "type": "choice",
+            "prompt": "What is the primary MITRE ATT&CK / SOC classification of this alert?",
+            "options": {
+              "A": "credential_access: brute force, token theft, impossible travel, SA key export",
+              "B": "privilege_escalation: unauthorized IAM policy binding, sudo abuse, container escape",
+              "C": "exfiltration: anomalous egress spike, unauthorized GCS bucket public sharing, DNS tunneling",
+              "D": "benign_activity: authorized CI/CD deployment, scheduled scanner, known maintenance window"
+            }
+          },
+          {
+            "name": "severity",
+            "type": "score",
+            "prompt": "Rate incident severity from 1 (informational/false positive) to 5 (critical active breach).",
+            "scale_min": 1,
+            "scale_max": 5,
+            "levels": ["1", "2", "3", "4", "5"]
+          }
+        ],
+        "samples": {{ default 1 .samples | toJson }}
+      },
+      "state": {
+        "alert": {{ default "No alert details provided." .alert | toJson }}
+      }
+    }
+
+  # 3. Retail Merchandising & Brand Safety Compliance Policy Template
+  retail_merchandising_compliance.json.tmpl: |
+    {
+      "name": "Retail Merchandising & Brand Safety Compliance (Calibrated)",
+      "description": "Single-pass 4-slot retail SKU merchandising, primary department routing, seasonal targeting, and brand safety compliance with Gemini 3.5 Flash-Lite Stage 2 cascade.",
+      "category": "retail",
+      "layout": "document_first",
+      "isolate": "auto",
+      "schema": {
+        "instructions": "Evaluate the retail product SKU listing across marketplace brand safety compliance, primary merchandising department, target season, and catalog completeness.",
+        "temperature": {
+          "noul": 1.15,
+          "choice": 1.40,
+          "score": 1.10
+        },
+        "questions": [
+          {
+            "name": "brand_safety_compliant",
+            "type": "boolean",
+            "prompt": "Does this product listing comply with marketplace safety and policy rules (no counterfeit claims, prohibited hazardous materials, unverified medical claims, or restricted weapons)?"
+          },
+          {
+            "name": "primary_department",
+            "type": "choice",
+            "prompt": "Which top-level retail merchandising department owns this product SKU?",
+            "options": {
+              "A": "apparel_footwear: clothing, shoes, fashion accessories, athletic wear",
+              "B": "consumer_electronics: computers, audio, smart home, mobile devices, gaming",
+              "C": "home_kitchen_garden: furniture, cookware, appliances, patio, decor",
+              "D": "beauty_personal_care: skincare, cosmetics, haircare, fragrance, grooming",
+              "E": "sports_outdoors: camping, fitness equipment, cycling, team sports",
+              "F": "grocery_gourmet_pet: pantry staples, beverages, specialty foods, pet supplies"
+            }
+          },
+          {
+            "name": "target_season",
+            "type": "choice",
+            "prompt": "What is the primary seasonal merchandising campaign for this product SKU?",
+            "options": {
+              "A": "evergreen_year_round: core catalog staple sold consistently all year",
+              "B": "spring_summer: warm-weather, outdoor, swim, patio, summer travel",
+              "C": "fall_back_to_school: autumn apparel, dorm essentials, study/office supplies",
+              "D": "winter_holiday_gifting: cold-weather gear, festive decor, Q4 gift bundles"
+            }
+          },
+          {
+            "name": "catalog_completeness_score",
+            "type": "score",
+            "prompt": "Rate catalog listing completeness and merchandising quality from 1 (severely incomplete/missing dimensions & specs) to 5 (rich, complete specification ready for featured placement).",
+            "scale_min": 1,
+            "scale_max": 5,
+            "levels": ["1", "2", "3", "4", "5"]
+          }
+        ],
+        "samples": {{ default 1 .samples | toJson }}
+      },
+      "state": {
+        "product": {{ default "No product specification provided." .product | toJson }}
+      }
+    }
+
+  # 4. Retail Deep Taxonomy & Attribute Extraction Policy Template (32 Categories via 2-Stage Tournament Bracket)
+  retail_deep_taxonomy.json.tmpl: |
+    {
+      "name": "Retail Deep Taxonomy & Attribute Extraction (32-Option Tournament)",
+      "description": "Evaluates 32 fine-grained Google Product Taxonomy categories via 2-Stage Tournament Bracket Mode (>26 options) alongside primary material, price tier, and gift eligibility.",
+      "category": "retail",
+      "layout": "document_first",
+      "isolate": "auto",
+      "schema": {
+        "instructions": "Classify the product SKU into the exact fine-grained retail taxonomy category (32 options evaluated via 2-stage tournament brackets) and extract primary material, price tier, and gift eligibility.",
+        "temperature": {
+          "noul": 1.45,
+          "choice": 1.45
+        },
+        "questions": [
+          {
+            "name": "google_product_category",
+            "type": "choice",
+            "prompt": "Select the single most accurate fine-grained Google Product Taxonomy leaf category (cat_01 through cat_32) for this SKU.",
+            "options": {
+              "cat_01": "Apparel & Accessories > Clothing > Outerwear > Coats & Jackets: insulated parkas, rain shells, down jackets, tailored blazers",
+              "cat_02": "Apparel & Accessories > Clothing > Activewear & Athletic Apparel: compression leggings, running shorts, moisture-wicking tops",
+              "cat_03": "Apparel & Accessories > Clothing > Everyday Tops, Dresses & Knitwear: merino sweaters, button-down shirts, casual dresses",
+              "cat_04": "Apparel & Accessories > Shoes > Athletic & Trail Running Footwear: marathon road shoes, trail runners, cross-training sneakers",
+              "cat_05": "Apparel & Accessories > Shoes > Boots, Dress & Casual Footwear: Goodyear-welt leather boots, loafers, waterproof chelsea boots",
+              "cat_06": "Apparel & Accessories > Handbags, Wallets, Watches & Eyewear: polarized sunglasses, leather totes, RFID wallets, field watches",
+              "cat_07": "Electronics > Computers > Laptops, Ultrabooks & Mobile Workstations: notebook computers, 2-in-1 convertibles, creator laptops",
+              "cat_08": "Electronics > Computers > Monitors, Mechanical Keyboards & Docks: 4K displays, ergonomic split keyboards, Thunderbolt docks",
+              "cat_09": "Electronics > Audio > Headphones, Wireless Earbuds & Studio Speakers: ANC headphones, bookshelf speakers, Bluetooth soundbars",
+              "cat_10": "Electronics > Communications > Smartphones, Cases & MagSafe Chargers: unlocked 5G handsets, GaN chargers, rugged phone cases",
+              "cat_11": "Electronics > Smart Home > Security Cameras, Thermostats & Lighting: Matter smart bulbs, PoE doorbells, smart HVAC sensors",
+              "cat_12": "Electronics > Video Game Consoles, VR Headsets & Pro Controllers: handheld gaming PCs, Hall-effect gamepads, sim racing wheels",
+              "cat_13": "Electronics > Cameras, Gimbal Stabilizers & Action Video Gear: mirrorless camera bodies, 3-axis gimbals, waterproof action cams",
+              "cat_14": "Home & Garden > Kitchen & Dining > Countertop Espresso & Small Appliances: dual-boiler espresso machines, air fryers, high-speed blenders",
+              "cat_15": "Home & Garden > Kitchen & Dining > Cookware, Dutch Ovens & Chef Cutlery: tri-ply stainless skillets, enameled cast iron, forged knives",
+              "cat_16": "Home & Garden > Kitchen & Dining > Tableware, Vacuum Drinkware & Barware: stoneware dinner sets, insulated tumblers, crystal glassware",
+              "cat_17": "Home & Garden > Furniture > Ergonomic Office, Living & Bedroom Furniture: mesh task chairs, standing desks, solid oak bed frames",
+              "cat_18": "Home & Garden > Linens & Bedding > Mattresses, Duvets & Cooling Pillows: percale sheet sets, down comforters, memory foam pillows",
+              "cat_19": "Home & Garden > Household Appliances > HEPA Purifiers, Vacuums & Dehumidifiers: LiDAR robot vacuums, true-HEPA air purifiers, humidifiers",
+              "cat_20": "Home & Garden > Lawn, Patio, Pellet Grills & Outdoor Living: Wi-Fi pellet smokers, modular patio sofas, cordless string trimmers",
+              "cat_21": "Health & Beauty > Personal Care > Facial Skincare, Retinol Serums & SPF: vitamin C serums, mineral sunscreens, barrier moisturizers",
+              "cat_22": "Health & Beauty > Personal Care > Cosmetics, Lip Oils & Mineral Makeup: liquid foundations, eyeshadow palettes, tinted lip balms",
+              "cat_23": "Health & Beauty > Personal Care > Hair Care, Ionic Dryers & Styling Tools: brushless hair dryers, ceramic flat irons, bond-repair masks",
+              "cat_24": "Health & Beauty > Personal Care > Fine Fragrance, Bath & Body Grooming: eau de parfum, botanical body washes, safety razors",
+              "cat_25": "Health & Beauty > Health Care > Percussion Massagers & Recovery Devices: deep-tissue massage guns, red-light therapy panels, tens units",
+              "cat_26": "Sporting Goods > Outdoor Recreation > Backpacking Tents, Sleeping Bags & Packs: ultralight 3-season tents, down quilts, hydration packs",
+              "cat_27": "Sporting Goods > Exercise & Fitness > Adjustable Dumbbells, Rowing & Yoga: cast-iron kettlebells, folding rowers, natural rubber yoga mats",
+              "cat_28": "Sporting Goods > Cycling, Paddleboarding & Winter Snow Sports Gear: MIPS road helmets, inflatable SUP boards, ski goggles",
+              "cat_29": "Food, Beverages & Tobacco > Beverages > Specialty Whole-Bean Coffee & Matcha: single-origin espresso beans, ceremonial matcha, functional teas",
+              "cat_30": "Food, Beverages & Tobacco > Food Items > Artisanal Olive Oil, Honey & Pantry: cold-pressed extra virgin olive oil, raw manuka honey, dark chocolate",
+              "cat_31": "Animals & Pet Supplies > Pet Nutrition > Freeze-Dried Raw Food & Joint Chews: grain-free salmon kibble, probiotic chews, freeze-dried liver treats",
+              "cat_32": "Animals & Pet Supplies > Pet Gear > Orthopedic Pet Beds, Harnesses & Smart Feeders: memory-foam dog beds, no-pull reflective harnesses, automatic feeders"
+            }
+          },
+          {
+            "name": "material_primary",
+            "type": "choice",
+            "prompt": "What is the primary physical material or formulation group of this product?",
+            "options": {
+              "A": "natural_textile: organic cotton, merino wool, linen, silk, genuine leather, goose down",
+              "B": "synthetic_polymer: recycled nylon, polyester, elastane, polycarbonate, silicone, ABS",
+              "C": "metal_alloy: stainless steel, anodized aluminum, cast iron, titanium, brass",
+              "D": "wood_bamboo_natural: solid hardwood, bamboo, rattan, cork, natural rubber",
+              "E": "glass_ceramic_stone: borosilicate glass, porcelain, stoneware, marble, quartz",
+              "F": "composite_electronic_consumable: multi-material electronics assembly, topical formulation, or food/pet consumable"
+            }
+          },
+          {
+            "name": "price_tier",
+            "type": "choice",
+            "prompt": "Which retail merchandising price tier applies to this SKU?",
+            "options": {
+              "A": "value_budget: entry-level everyday value under $35",
+              "B": "mid_market_core: mainstream retail core tier ($35 to $149)",
+              "C": "premium_specialty: high-performance enthusiast or specialty tier ($150 to $499)",
+              "D": "luxury_designer: flagship luxury, designer, or pro-grade tier ($500+)"
+            }
+          },
+          {
+            "name": "gift_eligible",
+            "type": "boolean",
+            "prompt": "Is this product suitable for gift-wrapping and inclusion in curated holiday gift guides?"
+          }
+        ],
+        "samples": {{ default 1 .samples | toJson }}
+      },
+      "state": {
+        "product": {{ default "No product specification provided." .product | toJson }}
+      }
+    }
+
+  # 5. Retail Catalog QA & Attribute Conflict Detection Policy Template
+  retail_catalog_qa.json.tmpl: |
+    {
+      "name": "Retail Catalog QA & Attribute Conflict Detection (Calibrated)",
+      "description": "Detects title-vs-specification contradictions, visual-attribute mismatches, missing mandatory disclosures, and policy violations with Gemini 3.5 Flash-Lite Stage 2 cascade.",
+      "category": "retail",
+      "layout": "document_first",
+      "isolate": "auto",
+      "schema": {
+        "instructions": "Audit the product SKU listing for title-vs-specification contradictions, visual attribute mismatches, missing critical disclosures, and SEO readiness.",
+        "temperature": {
+          "noul": 1.25,
+          "choice": 1.35,
+          "score": 1.15
+        },
+        "questions": [
+          {
+            "name": "auto_publish_approved",
+            "type": "boolean",
+            "prompt": "Can this SKU bypass manual merchandiser review and auto-publish immediately to the storefront without defects or compliance violations?"
+          },
+          {
+            "name": "primary_defect_type",
+            "type": "choice",
+            "prompt": "What is the primary catalog quality defect or compliance status of this SKU?",
+            "options": {
+              "A": "clean_no_defect: title, specifications, and visual attributes are consistent and policy-compliant",
+              "B": "title_spec_conflict: product title contradicts technical specs, dimensions, material, or visual description",
+              "C": "missing_critical_attributes: missing required sizing, voltage, ingredient list, or safety warnings",
+              "D": "policy_or_claim_violation: unsubstantiated medical/eco cure claims, counterfeit brand keyword stuffing, or restricted item"
+            }
+          },
+          {
+            "name": "seo_readiness_score",
+            "type": "score",
+            "prompt": "Rate search and discovery metadata quality from 1 (spammy/broken) to 5 (well-structured brand + model + key attributes).",
+            "scale_min": 1,
+            "scale_max": 5,
+            "levels": ["1", "2", "3", "4", "5"]
+          }
+        ],
+        "samples": {{ default 1 .samples | toJson }}
+      },
+      "state": {
+        "product": {{ default "No product specification provided." .product | toJson }}
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgem-gateway
+  namespace: dgem
+  labels:
+    app: dgem-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dgem-gateway
+  template:
+    metadata:
+      labels:
+        app: dgem-gateway
+    spec:
+      serviceAccountName: dgem-gateway-ksa
+      containers:
+        - name: gateway
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dgem-images/dgemma-gateway:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/app/dgem"
+          args:
+            - "serve"
+            - "--host=0.0.0.0"
+            - "--port=8080"
+            - "--templates-dir=/app/templates"
+            - "--default-backend=cloudrun"
+            - "--cascade-model=gemini-3.5-flash-lite"
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            # Point Gateway to internal GKE GPU Engine ClusterIP Service (in-cluster HTTP, zero IAM token overhead for pod-to-pod)
+            - name: UPSTREAM_DGEMMA_URL
+              value: "http://dgem-engine.dgem.svc.cluster.local:8080/v1"
+            - name: DGEM_DEFAULT_BACKEND
+              value: "cloudrun"
+            - name: DGEM_GCP_AUTH
+              value: "0"
+            - name: GCP_PROJECT
+              value: "${PROJECT_ID}"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "${PROJECT_ID}"
+            - name: DGEM_SYSTEMONE_TEMP
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: fitted_temperature
+            # Stage 2 Escalation to Gemini 3.5 Flash-Lite via Vertex AI
+            - name: DGEM_CASCADE_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: cascade_model
+            - name: DGEM_CASCADE_MODELS
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: cascade_models
+            - name: DGEM_CASCADE_PRIOR
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: cascade_prior
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          volumeMounts:
+            - name: calibrated-templates
+              mountPath: /app/templates/support_triage.json.tmpl
+              subPath: support_triage.json.tmpl
+            - name: calibrated-templates
+              mountPath: /app/templates/security_incident.json.tmpl
+              subPath: security_incident.json.tmpl
+            - name: calibrated-templates
+              mountPath: /app/templates/retail_merchandising_compliance.json.tmpl
+              subPath: retail_merchandising_compliance.json.tmpl
+            - name: calibrated-templates
+              mountPath: /app/templates/retail_deep_taxonomy.json.tmpl
+              subPath: retail_deep_taxonomy.json.tmpl
+            - name: calibrated-templates
+              mountPath: /app/templates/retail_catalog_qa.json.tmpl
+              subPath: retail_catalog_qa.json.tmpl
+          readinessProbe:
+            httpGet:
+              path: /api/templates
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/templates
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: calibrated-templates
+          configMap:
+            name: dgem-calibration-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgem-gateway
+  namespace: dgem
+  labels:
+    app: dgem-gateway
+  annotations:
+    # Default to internal VPC load balancer for secure enterprise access;
+    # remove annotation or attach Gateway/IAP for external HTTPS exposure.
+    networking.gke.io/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  selector:
+    app: dgem-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

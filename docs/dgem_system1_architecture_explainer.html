@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Cloud Architecture Studio — System-1 Discrete Diffusion (DGEM) on GKE G4</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       GOOGLE CLOUD THEME SYSTEM (DARK & LIGHT MODE CSS CUSTOM PROPERTIES)
+       ========================================================================== */
+    :root,
+    [data-theme="dark"] {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: #161f33;
+      --bg-card-hover: #1d2942;
+      --bg-elevated: #1e293b;
+      --bg-glass: rgba(22, 31, 51, 0.88);
+      --bg-svg: #0d1322;
+      --svg-mask: #131c31;
+      --svg-submask: #0f172a;
+      --grid-stroke: #1e293b;
+
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border-color: #263554;
+      --border-Strong: #334155;
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+
+      /* Google Cloud Signature Brand Palette (Dark Mode Tuned for High Contrast) */
+      --gc-blue: #8ab4f8;
+      --gc-blue-strong: #4285f4;
+      --gc-blue-fill: rgba(66, 133, 244, 0.18);
+      --gc-blue-soft: rgba(66, 133, 244, 0.08);
+
+      --gc-green: #81c995;
+      --gc-green-strong: #34a853;
+      --gc-green-fill: rgba(52, 168, 83, 0.18);
+      --gc-green-soft: rgba(52, 168, 83, 0.08);
+
+      --gc-amber: #fdd663;
+      --gc-amber-strong: #fbbc04;
+      --gc-amber-fill: rgba(251, 188, 4, 0.16);
+      --gc-amber-soft: rgba(251, 188, 4, 0.07);
+
+      --gc-red: #f28b82;
+      --gc-red-strong: #ea4335;
+      --gc-red-fill: rgba(234, 67, 53, 0.18);
+      --gc-red-soft: rgba(234, 67, 53, 0.08);
+
+      --gc-purple: #c58af9;
+      --gc-purple-strong: #9334e6;
+      --gc-purple-fill: rgba(147, 52, 230, 0.18);
+      --gc-purple-soft: rgba(147, 52, 230, 0.08);
+
+      --gc-slate: #94a3b8;
+      --gc-slate-fill: rgba(148, 163, 184, 0.14);
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #f8fafd;
+      --bg-secondary: #f1f5f9;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f8fafc;
+      --bg-elevated: #f1f5f9;
+      --bg-glass: rgba(255, 255, 255, 0.92);
+      --bg-svg: #ffffff;
+      --svg-mask: #ffffff;
+      --svg-submask: #f8fafc;
+      --grid-stroke: #e2e8f0;
+
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #475569;
+      --border-color: #cbd5e1;
+      --border-Strong: #94a3b8;
+      --shadow-card: 0 8px 24px -6px rgba(15, 23, 42, 0.08);
+
+      /* Google Cloud Signature Brand Palette (Light Mode Tuned for High Contrast) */
+      --gc-blue: #1a73e8;
+      --gc-blue-strong: #174ea6;
+      --gc-blue-fill: rgba(26, 115, 232, 0.10);
+      --gc-blue-soft: rgba(26, 115, 232, 0.04);
+
+      --gc-green: #1e8e3e;
+      --gc-green-strong: #137333;
+      --gc-green-fill: rgba(30, 142, 62, 0.10);
+      --gc-green-soft: rgba(30, 142, 62, 0.04);
+
+      --gc-amber: #b06000;
+      --gc-amber-strong: #e37400;
+      --gc-amber-fill: rgba(249, 171, 0, 0.13);
+      --gc-amber-soft: rgba(249, 171, 0, 0.05);
+
+      --gc-red: #d93025;
+      --gc-red-strong: #a50e0e;
+      --gc-red-fill: rgba(217, 48, 37, 0.10);
+      --gc-red-soft: rgba(217, 48, 37, 0.04);
+
+      --gc-purple: #8430ce;
+      --gc-purple-strong: #681da8;
+      --gc-purple-fill: rgba(147, 52, 230, 0.10);
+      --gc-purple-soft: rgba(147, 52, 230, 0.04);
+
+      --gc-slate: #475569;
+      --gc-slate-fill: rgba(100, 116, 139, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ==========================================================================
+       TOP STICKY NAVIGATION & THEME SWITCHER
+       ========================================================================== */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+    }
+
+    .topbar-inner {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .gc-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .gc-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .brand-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: var(--gc-blue-fill);
+      color: var(--gc-blue);
+      border: 1px solid var(--gc-blue);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--gc-blue);
+      background: var(--gc-blue-soft);
+      border-color: var(--border-color);
+    }
+
+    .theme-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      transition: all 0.2s ease;
+    }
+
+    .theme-btn:hover {
+      border-color: var(--gc-blue);
+      box-shadow: 0 0 0 2px var(--gc-blue-fill);
+    }
+
+    /* ==========================================================================
+       MAIN LAYOUT & SECTION CONTAINERS
+       ========================================================================== */
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .section {
+      margin-bottom: 3.25rem;
+      scroll-margin-top: 5rem;
+    }
+
+    .section-header {
+      margin-bottom: 1.25rem;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gc-blue);
+      margin-bottom: 0.4rem;
+    }
+
+    .pulse-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--gc-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.92); }
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.4rem;
+    }
+
+    .lead {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      max-width: 960px;
+    }
+
+    /* ==========================================================================
+       SECTION 1: EXECUTIVE HERO & KPI METRIC SCORECARD
+       ========================================================================== */
+    .hero-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.75rem;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #4285f4 0%, #34a853 33%, #fbbc04 66%, #ea4335 100%);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.85rem;
+      padding: 1.25rem;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--gc-blue);
+    }
+
+    .kpi-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.375rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .kpi-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 0.35rem;
+    }
+
+    .kpi-title {
+      font-weight: 700;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .kpi-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       DIAGRAM CONTAINERS & INLINE SVG STYLING
+       ========================================================================== */
+    .diagram-card {
+      background: var(--bg-svg);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      box-shadow: var(--shadow-card);
+      overflow-x: auto;
+      transition: background-color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .diagram-card svg {
+      display: block;
+      width: 100%;
+      min-width: 1040px;
+      height: auto;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .info-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.85rem;
+      padding: 1.25rem;
+      box-shadow: var(--shadow-card);
+    }
+
+    .info-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.blue { background: var(--gc-blue-strong); }
+    .dot.green { background: var(--gc-green-strong); }
+    .dot.amber { background: var(--gc-amber-strong); }
+    .dot.red { background: var(--gc-red-strong); }
+    .dot.purple { background: var(--gc-purple-strong); }
+
+    .info-card h3 {
+      font-size: 0.925rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .info-card ul {
+      list-style: none;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+    }
+
+    .info-card li {
+      margin-bottom: 0.45rem;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .info-card li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--gc-blue);
+      font-weight: bold;
+    }
+
+    /* ==========================================================================
+       SECTION 4: INTERACTIVE RETAIL ENRICHMENT SIMULATOR
+       ========================================================================== */
+    .sim-wrapper {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-card);
+    }
+
+    .sim-controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .tab-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tab-btn {
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      padding: 0.5rem 0.95rem;
+      border-radius: 0.6rem;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      background: var(--gc-blue-fill);
+      color: var(--gc-blue);
+      border-color: var(--gc-blue);
+    }
+
+    .sku-toggle-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .sku-btn {
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+    }
+
+    .sku-btn.active-fast {
+      background: var(--gc-green-fill);
+      color: var(--gc-green);
+      border-color: var(--gc-green);
+    }
+
+    .sku-btn.active-escalate {
+      background: var(--gc-purple-fill);
+      color: var(--gc-purple);
+      border-color: var(--gc-purple);
+    }
+
+    .threshold-bar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      padding: 0.85rem 1.15rem;
+      border-radius: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .threshold-bar label {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .threshold-slider {
+      flex: 1;
+      min-width: 180px;
+      accent-color: var(--gc-blue-strong);
+      cursor: pointer;
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 960px) {
+      .sim-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sku-input-panel,
+    .sku-output-panel {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.85rem;
+      padding: 1.25rem;
+    }
+
+    .panel-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sku-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.6rem;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+    }
+
+    .slot-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.65rem;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .slot-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .slot-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+    }
+
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+    }
+
+    .badge-s1 {
+      background: var(--gc-green-fill);
+      color: var(--gc-green);
+      border: 1px solid var(--gc-green);
+    }
+
+    .badge-s2 {
+      background: var(--gc-purple-fill);
+      color: var(--gc-purple);
+      border: 1px solid var(--gc-purple);
+    }
+
+    .meter-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-elevated);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 0.4rem 0;
+    }
+
+    .meter-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* ==========================================================================
+       REFERENCE LINKS & FOOTER
+       ========================================================================== */
+    .ref-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .ref-card {
+      display: block;
+      text-decoration: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.8rem;
+      padding: 1.1rem;
+      transition: all 0.15s ease;
+    }
+
+    .ref-card:hover {
+      border-color: var(--gc-blue);
+      transform: translateY(-2px);
+      background: var(--bg-card-hover);
+    }
+
+    .ref-card-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--gc-blue);
+      margin-bottom: 0.3rem;
+    }
+
+    .ref-card-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .footer {
+      border-top: 1px solid var(--border-color);
+      padding-top: 1.5rem;
+      margin-top: 3rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       STICKY TOP BAR WITH GOOGLE CLOUD LIGHT / DARK MODE SWITCHER
+       ======================================================================== -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="gc-dots" aria-hidden="true">
+          <span style="background:#4285F4"></span>
+          <span style="background:#EA4335"></span>
+          <span style="background:#FBBC04"></span>
+          <span style="background:#34A853"></span>
+        </div>
+        <span class="brand-title">Google Cloud GKE &amp; Vertex AI Architecture Studio</span>
+        <span class="brand-badge">DGEM System-1 on G4</span>
+      </div>
+
+      <nav class="nav-links" aria-label="Section Navigation">
+        <a class="nav-link" href="#overview">1. Executive Scorecard</a>
+        <a class="nav-link" href="#gke-architecture">2. GKE G4 Runtime SVG</a>
+        <a class="nav-link" href="#diffusion-mechanics">3. System-1 Diffusion SVG</a>
+        <a class="nav-link" href="#retail-simulator">4. Interactive Retail Simulator</a>
+      </nav>
+
+      <button id="theme-toggle" class="theme-btn" type="button" onclick="toggleTheme()" aria-label="Toggle Light and Dark Theme">
+        <span id="theme-icon">☀️</span>
+        <span id="theme-label">Switch to Light Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ======================================================================
+         SECTION 1: EXECUTIVE OVERVIEW & VERIFIED G4 BENCHMARK SCORECARD
+         ====================================================================== -->
+    <section id="overview" class="section">
+      <div class="hero-card">
+        <div class="eyebrow">
+          <span class="pulse-dot"></span>
+          <span>Production Reference Architecture • GKE Standard + NVIDIA RTX PRO 6000 Blackwell (G4)</span>
+        </div>
+        <h1>Calibrated System-1 Discrete Diffusion + Selective Vertex AI Cascade</h1>
+        <p class="lead">
+          High-volume enterprise pipelines—such as <strong>Retail Product Catalog Enrichment</strong>, attribute extraction, and compliance triage—cannot afford 400–900 ms of sequential autoregressive decoding on every SKU. By deploying <strong>DiffusionGemma 26B-A4B (ModelOpt NVFP4)</strong> on <strong>GKE G4 (`g4-standard-48`)</strong> nodes as a fast, calibrated <strong>System-1 decision engine</strong> (`57 ms` p50) and escalating only high-entropy slots ($H/\ln K \ge \tau$) to <strong>Vertex AI `gemini-3.5-flash-lite`</strong> (System-2), organizations resolve <strong>75–85% of catalog decisions in a single forward pass</strong> while maintaining near-100% accuracy on ambiguous edge cases.
+        </p>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-tag" style="background:var(--gc-green-fill); color:var(--gc-green); border:1px solid var(--gc-green)">STAGE 1 G4 LATENCY</span>
+            <div class="kpi-value" style="color:var(--gc-green)">57 ms <span style="font-size:1rem; font-weight:600">p50</span></div>
+            <div class="kpi-title">Single-Pass Multi-Slot Denoising</div>
+            <div class="kpi-desc">Evaluates 4–16 structured slots (`noul`, `choice`, `score`) simultaneously in 1 bidirectional forward pass (`67 ms` p99) on 1x NVIDIA RTX PRO 6000 Blackwell (96 GB).</div>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-tag" style="background:var(--gc-amber-fill); color:var(--gc-amber); border:1px solid var(--gc-amber)">SPOT FAST-START</span>
+            <div class="kpi-value" style="color:var(--gc-amber)">7.91 s <span style="font-size:1rem; font-weight:600">(11.1x)</span></div>
+            <div class="kpi-title">Pre-Hydrated NVFP4 Weight Load</div>
+            <div class="kpi-desc">3-Layer startup acceleration: Secondary Boot Disk image cache + Hyperdisk `VolumeSnapshot` (`17.53 GiB` weights) + pre-compiled SM120 `jit-cache.tar.gz` on `/dev/shm`.</div>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-tag" style="background:var(--gc-blue-fill); color:var(--gc-blue); border:1px solid var(--gc-blue)">CALIBRATED ROUTING</span>
+            <div class="kpi-value" style="color:var(--gc-blue)">100.0% <span style="font-size:1rem; font-weight:600">@ τ=0.16</span></div>
+            <div class="kpi-title">Post-Hoc Temperature Scaling ($T^*$)</div>
+            <div class="kpi-desc">Domain temperature fitting cuts Expected Calibration Error (ECE) by ~50%, turning normalized slot entropy ($H/\ln K$) into a mathematically rigorous hesitation gate.</div>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-tag" style="background:var(--gc-purple-fill); color:var(--gc-purple); border:1px solid var(--gc-purple)">CAPACITY WATERFALL</span>
+            <div class="kpi-value" style="color:var(--gc-purple)">3-Tier <span style="font-size:1rem; font-weight:600">GKE G4</span></div>
+            <div class="kpi-title">Spot → DWS Flex-Start → On-Demand</div>
+            <div class="kpi-desc">Custom `ComputeClass` (`dgem-g4-priority`) captures 60–91% GKE Spot GPU savings and automatically falls back to DWS Flex-Start or On-Demand with active reconciliation.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 2: INLINE SVG DIAGRAM #1 — GKE G4 INFERENCE RUNTIME & 3-TIER COMPUTECLASS
+         ====================================================================== -->
+    <section id="gke-architecture" class="section">
+      <div class="section-header">
+        <div class="eyebrow">
+          <span class="pulse-dot" style="background:var(--gc-blue)"></span>
+          <span>Architecture Blueprint #1 • Cloud Infrastructure &amp; Storage Topology</span>
+        </div>
+        <h2>GKE G4 Inference Runtime, 3-Tier ComputeClass &amp; Stage-2 Vertex AI Cascade</h2>
+        <p class="lead">
+          End-to-end Google Cloud deployment topology showing how stateless CPU gateway pods (`dgem serve`) orchestrate single-pass GPU inference on `g4-standard-48` nodes, recover from Spot preemptions in seconds via 3-layer Hyperdisk + `/dev/shm` caching, and selectively escalate high-entropy slots to Vertex AI `gemini-3.5-flash-lite`.
+        </p>
+      </div>
+
+      <div class="diagram-card">
+        <svg viewBox="0 0 1180 740" role="img" aria-label="GKE G4 Inference Runtime and 3-Tier ComputeClass Architecture Diagram">
+          <defs>
+            <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="var(--gc-blue)" />
+            </marker>
+            <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="var(--gc-green)" />
+            </marker>
+            <marker id="arrow-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="var(--gc-amber)" />
+            </marker>
+            <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="var(--gc-red)" />
+            </marker>
+            <marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="var(--gc-purple)" />
+            </marker>
+            <pattern id="arch-grid-1" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--grid-stroke)" stroke-width="0.6"/>
+            </pattern>
+          </defs>
+
+          <!-- Background Grid -->
+          <rect width="100%" height="100%" fill="url(#arch-grid-1)" />
+
+          <!-- ================================================================
+               OUTER BOUNDARIES (VPC, GKE NODE POOLS, STORAGE, MANAGED CLOUD)
+               ================================================================ -->
+          <!-- Boundary 1: Customer VPC & GKE Standard Cluster -->
+          <rect x="20" y="20" width="870" height="630" rx="12" fill="var(--gc-blue-soft)" stroke="var(--gc-blue)" stroke-width="1.5" stroke-dasharray="8,4" />
+          <text x="36" y="43" fill="var(--gc-blue)" font-size="12" font-weight="700">Google Cloud VPC • GKE Standard Regional Cluster (us-central1 • Release Channel: RAPID)</text>
+
+          <!-- Sub-Boundary 1A: CPU Gateway Node Pool -->
+          <rect x="35" y="268" width="255" height="232" rx="10" fill="none" stroke="var(--gc-blue)" stroke-width="1.2" stroke-dasharray="4,4" />
+          <text x="47" y="286" fill="var(--gc-blue)" font-size="11" font-weight="600">CPU Node Pool (e2-standard-8)</text>
+
+          <!-- Sub-Boundary 1B: G4 GPU Node Pool -->
+          <rect x="315" y="60" width="555" height="392" rx="10" fill="var(--gc-green-soft)" stroke="var(--gc-green)" stroke-width="1.5" stroke-dasharray="6,4" />
+          <text x="330" y="81" fill="var(--gc-green)" font-size="12" font-weight="700">G4 GPU Node Pool • g4-standard-48 (1x NVIDIA RTX PRO 6000 Blackwell 96GB)</text>
+
+          <!-- Sub-Boundary 1C: 3-Layer Fast-Start Storage & Cache -->
+          <rect x="315" y="468" width="555" height="166" rx="10" fill="var(--gc-amber-soft)" stroke="var(--gc-amber)" stroke-width="1.5" stroke-dasharray="6,4" />
+          <text x="330" y="489" fill="var(--gc-amber)" font-size="12" font-weight="700">3-Layer Spot Fast-Start Storage Architecture (87.6s → 7.91s Weight Load)</text>
+
+          <!-- Boundary 2: Managed Google Cloud Services -->
+          <rect x="910" y="20" width="250" height="630" rx="12" fill="var(--gc-purple-soft)" stroke="var(--gc-purple)" stroke-width="1.5" stroke-dasharray="8,4" />
+          <text x="926" y="43" fill="var(--gc-purple)" font-size="12" font-weight="700">Managed Google Cloud APIs</text>
+
+          <!-- ================================================================
+               CONNECTIONS / ARROWS (Z-ORDERED BEHIND COMPONENT BOXES)
+               ================================================================ -->
+          <!-- Client -> Cloud Load Balancer -->
+          <line x1="162" y1="142" x2="162" y2="176" stroke="var(--gc-blue)" stroke-width="2" marker-end="url(#arrow-blue)" />
+          <text x="172" y="164" fill="var(--text-secondary)" font-size="10" font-weight="600">HTTPS :443</text>
+
+          <!-- Cloud Load Balancer -> dgem-gateway Pods -->
+          <line x1="162" y1="244" x2="162" y2="294" stroke="var(--gc-blue)" stroke-width="2" marker-end="url(#arrow-blue)" />
+
+          <!-- dgem-gateway Pods -> dgem-engine K8s Service (Stage 1 Fast Path RPC) -->
+          <path d="M 278 345 L 302 345 L 302 128 L 331 128" fill="none" stroke="var(--gc-green)" stroke-width="2.2" marker-end="url(#arrow-green)" />
+          <text x="308" y="232" fill="var(--gc-green)" font-size="10" font-weight="700" transform="rotate(-90 308 232)">Stage 1 HTTP :8080</text>
+
+          <!-- dgem-engine K8s Service -> dgem-engine GPU Pod -->
+          <line x1="470" y1="158" x2="470" y2="181" stroke="var(--gc-green)" stroke-width="2" marker-end="url(#arrow-green)" />
+
+          <!-- 3-Layer Fast-Start Storage -> dgem-engine GPU Pod -->
+          <line x1="412" y1="504" x2="412" y2="332" stroke="var(--gc-amber)" stroke-width="1.8" stroke-dasharray="4,3" marker-end="url(#arrow-amber)" />
+          <line x1="592" y1="504" x2="592" y2="332" stroke="var(--gc-amber)" stroke-width="1.8" stroke-dasharray="4,3" marker-end="url(#arrow-amber)" />
+          <line x1="772" y1="504" x2="772" y2="332" stroke="var(--gc-amber)" stroke-width="1.8" stroke-dasharray="4,3" marker-end="url(#arrow-amber)" />
+
+          <!-- dgem-gateway -> Workload Identity -->
+          <line x1="162" y1="418" x2="162" y2="434" stroke="var(--gc-red)" stroke-width="1.8" stroke-dasharray="4,4" marker-end="url(#arrow-red)" />
+
+          <!-- dgem-gateway -> Vertex AI Stage 2 (Conditional Escalation Path) -->
+          <path d="M 162 490 L 162 642 L 898 642 L 898 340 L 921 340" fill="none" stroke="var(--gc-purple)" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#arrow-purple)" />
+          <rect x="330" y="629" width="450" height="22" rx="4" fill="var(--svg-mask)" stroke="var(--gc-purple)" stroke-width="1" />
+          <text x="555" y="644" fill="var(--gc-purple)" font-size="10" font-weight="700" text-anchor="middle">Selective Stage-2 Escalation (Only Slots with H/ln(K) ≥ 0.16 + Soft Prior)</text>
+
+          <!-- GCS Bucket -> 3-Layer Storage Hydration -->
+          <path d="M 925 560 L 858 560" fill="none" stroke="var(--gc-amber)" stroke-width="1.8" stroke-dasharray="5,4" marker-end="url(#arrow-amber)" />
+
+          <!-- dgem-engine -> Cloud Monitoring -->
+          <path d="M 852 128 L 921 128" fill="none" stroke="var(--gc-blue)" stroke-width="1.8" stroke-dasharray="4,4" marker-end="url(#arrow-blue)" />
+
+          <!-- ================================================================
+               LEFT COLUMN COMPONENTS: CLIENT, LB, GATEWAY PODS, WORKLOAD ID
+               ================================================================ -->
+          <!-- Box 1A: Client / Merchandising Pipeline -->
+          <rect x="47" y="68" width="230" height="74" rx="8" fill="var(--svg-mask)" />
+          <rect x="47" y="68" width="230" height="74" rx="8" fill="var(--gc-slate-fill)" stroke="var(--gc-slate)" stroke-width="1.5" />
+          <text x="162" y="91" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">Catalog Enrichment Client</text>
+          <text x="162" y="110" fill="var(--text-secondary)" font-size="10" text-anchor="middle">SKU Text + Optional Image</text>
+          <text x="162" y="128" fill="var(--gc-blue)" font-size="10" font-weight="600" text-anchor="middle">POST /v1/decide (Multi-Slot)</text>
+
+          <!-- Box 1B: Cloud Load Balancing -->
+          <rect x="47" y="178" width="230" height="66" rx="8" fill="var(--svg-mask)" />
+          <rect x="47" y="178" width="230" height="66" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="162" y="203" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">Cloud Load Balancing</text>
+          <text x="162" y="221" fill="var(--text-secondary)" font-size="10" text-anchor="middle">dgem-gateway K8s Service</text>
+          <text x="162" y="236" fill="var(--gc-blue)" font-size="10" font-weight="600" text-anchor="middle">Regional Internal / External LB</text>
+
+          <!-- Box 1C: dgem-gateway Pods (dgem serve) -->
+          <rect x="47" y="296" width="230" height="122" rx="8" fill="var(--svg-mask)" />
+          <rect x="47" y="296" width="230" height="122" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="162" y="317" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">dgem-gateway (dgem serve)</text>
+          <text x="59" y="337" fill="var(--text-secondary)" font-size="10">• Document-First Prompt Engine</text>
+          <text x="59" y="354" fill="var(--text-secondary)" font-size="10">• Temp Scaling p_i(T*) ConfigMap</text>
+          <text x="59" y="371" fill="var(--text-secondary)" font-size="10">• Entropy Gate: H/ln(K) vs τ=0.16</text>
+          <text x="59" y="388" fill="var(--text-secondary)" font-size="10">• Selective Stage-2 Router</text>
+          <text x="59" y="406" fill="var(--gc-blue)" font-size="10" font-weight="600">Stateless Go &amp; Python Orchestrator</text>
+
+          <!-- Box 1D: GKE Workload Identity -->
+          <rect x="47" y="436" width="230" height="54" rx="8" fill="var(--svg-mask)" />
+          <rect x="47" y="436" width="230" height="54" rx="8" fill="var(--gc-red-fill)" stroke="var(--gc-red)" stroke-width="1.5" />
+          <text x="162" y="458" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">GKE Workload Identity</text>
+          <text x="162" y="476" fill="var(--gc-red)" font-size="10" font-weight="600" text-anchor="middle">KSA → roles/aiplatform.user (Keyless)</text>
+
+          <!-- ================================================================
+               CENTER COLUMN COMPONENTS: G4 GPU POD, COMPUTECLASS, 3-LAYER STORAGE
+               ================================================================ -->
+          <!-- Box 2A: dgem-engine K8s Service -->
+          <rect x="335" y="96" width="270" height="62" rx="8" fill="var(--svg-mask)" />
+          <rect x="335" y="96" width="270" height="62" rx="8" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.5" />
+          <text x="470" y="119" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">dgem-engine Service (:8080)</text>
+          <text x="470" y="137" fill="var(--text-secondary)" font-size="10" text-anchor="middle">ClusterIP • /health Readiness Probe</text>
+          <text x="470" y="151" fill="var(--gc-green)" font-size="10" font-weight="600" text-anchor="middle">Routes to Warm G4 GPU Pods</text>
+
+          <!-- Box 2A-Right: GPU Hardware Spec Badge -->
+          <rect x="620" y="96" width="232" height="62" rx="8" fill="var(--svg-mask)" />
+          <rect x="620" y="96" width="232" height="62" rx="8" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.5" />
+          <text x="736" y="119" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">RTX PRO 6000 Blackwell</text>
+          <text x="736" y="137" fill="var(--text-secondary)" font-size="10" text-anchor="middle">96 GB GDDR7 • SM120 Native FP4</text>
+          <text x="736" y="151" fill="var(--gc-green)" font-size="10" font-weight="600" text-anchor="middle">17.53 GiB Weights (78GB Free)</text>
+
+          <!-- Box 2B: dgem-engine GPU Pod -->
+          <rect x="335" y="183" width="517" height="148" rx="8" fill="var(--svg-mask)" />
+          <rect x="335" y="183" width="517" height="148" rx="8" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.8" />
+          <text x="593" y="206" fill="var(--text-primary)" font-size="13" font-weight="700" text-anchor="middle">dgem-engine Pod — DiffusionGemma 26B-A4B (ModelOpt NVFP4)</text>
+          <text x="352" y="228" fill="var(--text-secondary)" font-size="10">1. structured_server.py (:8080) — Multi-Slot Canvas &amp; 2-Stage 32-Category Tournament</text>
+          <text x="352" y="247" fill="var(--text-secondary)" font-size="10">2. vLLM Engine (:8000) — W4A4 NVFP4 Quantization + FlashInfer SM120 Attention Kernels</text>
+          <text x="352" y="266" fill="var(--text-secondary)" font-size="10">3. Single-Pass Block Denoising — 128-Token Bidirectional Forward Pass (O(1) Step)</text>
+          <text x="352" y="285" fill="var(--text-secondary)" font-size="10">4. Simultaneous Slot Logit Readout — noul (Yes/No) | choice (A..F) | score (1..5)</text>
+          <text x="352" y="306" fill="var(--gc-green)" font-size="11" font-weight="700">Verified G4 Latency: 57 ms p50 (67 ms p99) • 4 Simultaneous Retail Slots / Pass</text>
+          <text x="352" y="322" fill="var(--gc-amber)" font-size="10" font-weight="600">Termination Grace Period: 45s • PreStop Hook Drains In-Flight Batch Requests</text>
+
+          <!-- Box 2C: Custom ComputeClass 3-Tier Waterfall -->
+          <rect x="335" y="344" width="517" height="96" rx="8" fill="var(--svg-mask)" />
+          <rect x="335" y="344" width="517" height="96" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="593" y="365" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">GKE Custom ComputeClass: dgem-g4-priority (activeMigration.optimizeRulePriority: true)</text>
+
+          <!-- Priority 1: Spot -->
+          <rect x="348" y="376" width="156" height="52" rx="6" fill="var(--svg-submask)" stroke="var(--gc-green)" stroke-width="1.3" />
+          <text x="426" y="397" fill="var(--gc-green)" font-size="11" font-weight="700" text-anchor="middle">Priority 1: Spot G4</text>
+          <text x="426" y="415" fill="var(--text-secondary)" font-size="10" text-anchor="middle">60–91% Cost Discount</text>
+
+          <!-- Priority 2: DWS Flex-Start -->
+          <rect x="515" y="376" width="156" height="52" rx="6" fill="var(--svg-submask)" stroke="var(--gc-amber)" stroke-width="1.3" />
+          <text x="593" y="397" fill="var(--gc-amber)" font-size="11" font-weight="700" text-anchor="middle">Priority 2: Flex-Start</text>
+          <text x="593" y="415" fill="var(--text-secondary)" font-size="10" text-anchor="middle">DWS Queued Provisioning</text>
+
+          <!-- Priority 3: On-Demand -->
+          <rect x="682" y="376" width="156" height="52" rx="6" fill="var(--svg-submask)" stroke="var(--gc-blue)" stroke-width="1.3" />
+          <text x="760" y="397" fill="var(--gc-blue)" font-size="11" font-weight="700" text-anchor="middle">Priority 3: On-Demand</text>
+          <text x="760" y="415" fill="var(--text-secondary)" font-size="10" text-anchor="middle">100% SLA Fallback</text>
+
+          <!-- ================================================================
+               3-LAYER FAST-START STORAGE BOXES (BOTTOM CENTER)
+               ================================================================ -->
+          <!-- Layer 1: Secondary Boot Disk -->
+          <rect x="332" y="504" width="162" height="116" rx="8" fill="var(--svg-mask)" />
+          <rect x="332" y="504" width="162" height="116" rx="8" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="413" y="525" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">1. Image Cache Disk</text>
+          <text x="413" y="544" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Secondary Boot Disk</text>
+          <text x="413" y="561" fill="var(--text-secondary)" font-size="10" text-anchor="middle">pd-balanced (150 GB)</text>
+          <text x="413" y="578" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Caches 20GB Container</text>
+          <text x="413" y="598" fill="var(--gc-amber)" font-size="10" font-weight="700" text-anchor="middle">0s Image Pull Delay</text>
+
+          <!-- Layer 2: Hyperdisk VolumeSnapshot -->
+          <rect x="511" y="504" width="162" height="116" rx="8" fill="var(--svg-mask)" />
+          <rect x="511" y="504" width="162" height="116" rx="8" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="592" y="525" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">2. Weight Snapshot</text>
+          <text x="592" y="544" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Hyperdisk Balanced / ML</text>
+          <text x="592" y="561" fill="var(--text-secondary)" font-size="10" text-anchor="middle">From VolumeSnapshot</text>
+          <text x="592" y="578" fill="var(--text-secondary)" font-size="10" text-anchor="middle">17.53 GiB Safetensors</text>
+          <text x="592" y="598" fill="var(--gc-amber)" font-size="10" font-weight="700" text-anchor="middle">7.91s Load (11.1x)</text>
+
+          <!-- Layer 3: /dev/shm + SM120 JIT Cache -->
+          <rect x="690" y="504" width="165" height="116" rx="8" fill="var(--svg-mask)" />
+          <rect x="690" y="504" width="165" height="116" rx="8" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="772" y="525" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">3. /dev/shm + JIT</text>
+          <text x="772" y="544" fill="var(--text-secondary)" font-size="10" text-anchor="middle">32 GiB RAM emptyDir</text>
+          <text x="772" y="561" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Pre-Compiled SM120</text>
+          <text x="772" y="578" fill="var(--text-secondary)" font-size="10" text-anchor="middle">jit-cache.tar.gz</text>
+          <text x="772" y="598" fill="var(--gc-amber)" font-size="10" font-weight="700" text-anchor="middle">Skips 90s JIT Compile</text>
+
+          <!-- ================================================================
+               RIGHT COLUMN COMPONENTS: CLOUD MONITORING, VERTEX AI, GCS
+               ================================================================ -->
+          <!-- Box 4C: Cloud Monitoring -->
+          <rect x="925" y="70" width="220" height="118" rx="8" fill="var(--svg-mask)" />
+          <rect x="925" y="70" width="220" height="118" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="1035" y="93" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">Cloud Monitoring</text>
+          <text x="938" y="114" fill="var(--text-secondary)" font-size="10">• Stage 1 vs 2 Latency</text>
+          <text x="938" y="131" fill="var(--text-secondary)" font-size="10">• Escalation Rate (H/ln K)</text>
+          <text x="938" y="148" fill="var(--text-secondary)" font-size="10">• GPU KV Cache Utilization</text>
+          <text x="938" y="165" fill="var(--gc-blue)" font-size="10" font-weight="600">• Spot Preemption Alerts</text>
+
+          <!-- Box 4A: Vertex AI gemini-3.5-flash-lite -->
+          <rect x="925" y="255" width="220" height="170" rx="8" fill="var(--svg-mask)" />
+          <rect x="925" y="255" width="220" height="170" rx="8" fill="var(--gc-purple-fill)" stroke="var(--gc-purple)" stroke-width="1.8" />
+          <text x="1035" y="279" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">Vertex AI (Stage 2)</text>
+          <text x="1035" y="298" fill="var(--gc-purple)" font-size="11" font-weight="700" text-anchor="middle">gemini-3.5-flash-lite</text>
+          <text x="938" y="320" fill="var(--text-secondary)" font-size="10">• Invoked ONLY when slot</text>
+          <text x="938" y="336" fill="var(--text-secondary)" font-size="10">  entropy H/ln(K) ≥ 0.16</text>
+          <text x="938" y="355" fill="var(--text-secondary)" font-size="10">• Receives Stage 1 Soft Prior</text>
+          <text x="938" y="372" fill="var(--text-secondary)" font-size="10">  (p_i(T*) distribution)</text>
+          <text x="938" y="391" fill="var(--text-secondary)" font-size="10">• Resolves conflicting SKU</text>
+          <text x="938" y="407" fill="var(--gc-purple)" font-size="10" font-weight="700">  specs (~15–25% of traffic)</text>
+
+          <!-- Box 4B: Cloud Storage (GCS) -->
+          <rect x="925" y="485" width="220" height="135" rx="8" fill="var(--svg-mask)" />
+          <rect x="925" y="485" width="220" height="135" rx="8" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="1035" y="509" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">Cloud Storage (GCS)</text>
+          <text x="1035" y="527" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Model &amp; Kernel Artifact Bucket</text>
+          <text x="938" y="548" fill="var(--text-secondary)" font-size="10">• NVFP4 Model Safetensors</text>
+          <text x="938" y="565" fill="var(--text-secondary)" font-size="10">• SM120 jit-cache.tar.gz</text>
+          <text x="938" y="582" fill="var(--text-secondary)" font-size="10">• Seeds Snapshot Job Once</text>
+          <text x="938" y="601" fill="var(--gc-amber)" font-size="10" font-weight="600">Zero Runtime GCS Egress</text>
+
+          <!-- ================================================================
+               EXTERNAL LEGEND (STRICTLY BELOW Y=650 BOUNDARY AT Y=672)
+               ================================================================ -->
+          <rect x="20" y="672" width="1140" height="50" rx="8" fill="var(--svg-mask)" stroke="var(--border-color)" stroke-width="1.2" />
+          <text x="38" y="701" fill="var(--text-primary)" font-size="11" font-weight="700">LEGEND:</text>
+
+          <rect x="108" y="690" width="16" height="14" rx="3" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="130" y="701" fill="var(--text-secondary)" font-size="10">GKE Control / CPU Gateway</text>
+
+          <rect x="305" y="690" width="16" height="14" rx="3" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.5" />
+          <text x="327" y="701" fill="var(--text-secondary)" font-size="10">Stage 1 G4 GPU Engine (57 ms)</text>
+
+          <rect x="520" y="690" width="16" height="14" rx="3" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="542" y="701" fill="var(--text-secondary)" font-size="10">3-Layer Fast-Start Storage (7.91s)</text>
+
+          <rect x="755" y="690" width="16" height="14" rx="3" fill="var(--gc-purple-fill)" stroke="var(--gc-purple)" stroke-width="1.5" />
+          <text x="777" y="701" fill="var(--text-secondary)" font-size="10">Stage 2 Vertex AI Escalation</text>
+
+          <rect x="965" y="690" width="16" height="14" rx="3" fill="var(--gc-red-fill)" stroke="var(--gc-red)" stroke-width="1.5" />
+          <text x="987" y="701" fill="var(--text-secondary)" font-size="10">Workload Identity Security</text>
+        </svg>
+      </div>
+
+      <div class="summary-grid">
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="dot green"></span>
+            <h3>Why G4 (`RTX PRO 6000 Blackwell`) Fits System-1</h3>
+          </div>
+          <ul>
+            <li><strong>Native SM120 FP4 Tensor Cores:</strong> Executes `ModelOpt NVFP4 (W4A4)` weights natively with `17.53 GiB` footprint out of `96 GB GDDR7` VRAM.</li>
+            <li><strong>Massive KV Cache Headroom:</strong> Over `78 GiB` of free VRAM remains for batched multi-slot retail prompts and SigLIP image tokens.</li>
+            <li><strong>Constant $O(1)$ Step Latency:</strong> 4-slot structured decisions complete in `57 ms` p50 (`67 ms` p99).</li>
+          </ul>
+        </div>
+
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="dot amber"></span>
+            <h3>3-Layer Spot Recovery (`87.6s` → `7.91s`)</h3>
+          </div>
+          <ul>
+            <li><strong>Layer 1 (Secondary Boot Disk):</strong> Pre-caches the `20 GB` vLLM runtime container image so Spot replacement nodes pull `0 bytes` over the network.</li>
+            <li><strong>Layer 2 (Hyperdisk Snapshot / ML):</strong> Pre-hydrated `VolumeSnapshot` streams `17.53 GiB` of NVFP4 safetensors into `/dev/shm` in `7.91 s` (`11.1x` faster than cold GCS).</li>
+            <li><strong>Layer 3 (SM120 JIT Cache):</strong> Restores pre-compiled FlashInfer CUDA kernels (`jit-cache.tar.gz`) in `< 1 s`, eliminating the 90-second first-request compile stall.</li>
+          </ul>
+        </div>
+
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="dot blue"></span>
+            <h3>3-Tier ComputeClass Resilience</h3>
+          </div>
+          <ul>
+            <li><strong>Priority 1 (GKE Spot G4):</strong> Primary execution tier capturing 60–91% GPU cost savings against On-Demand pricing.</li>
+            <li><strong>Priority 2 (DWS Flex-Start):</strong> Dynamic Workload Scheduler provisions fallback G4 capacity during regional Spot tightness.</li>
+            <li><strong>Priority 3 (On-Demand + Active Migration):</strong> Guarantees production SLA and automatically migrates back to Spot when capacity frees up.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 3: INLINE SVG DIAGRAM #2 — HOW SYSTEM-1 DISCRETE DIFFUSION WORKS
+         ====================================================================== -->
+    <section id="diffusion-mechanics" class="section">
+      <div class="section-header">
+        <div class="eyebrow">
+          <span class="pulse-dot" style="background:var(--gc-green)"></span>
+          <span>Architecture Blueprint #2 • Algorithmic &amp; Mathematical Mechanics</span>
+        </div>
+        <h2>How the System-1 Discrete Diffusion Engine (`DiffusionGemma 26B-A4B NVFP4`) Works</h2>
+        <p class="lead">
+          Unlike autoregressive LLMs that decode one token at a time ($O(N)$ sequential forward passes) and suffer from poorly calibrated verbalized confidence, `DiffusionGemma` treats structured multi-slot decision-making as a <strong>single-pass bidirectional denoising problem ($O(1)$ forward pass)</strong> over a fixed 128-token canvas, yielding exact per-slot probability distributions in `57 ms`.
+        </p>
+      </div>
+
+      <div class="diagram-card">
+        <svg viewBox="0 0 1180 650" role="img" aria-label="How System-1 Discrete Diffusion Model Works Diagram">
+          <defs>
+            <pattern id="arch-grid-2" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--grid-stroke)" stroke-width="0.6"/>
+            </pattern>
+          </defs>
+
+          <!-- Background Grid -->
+          <rect width="100%" height="100%" fill="url(#arch-grid-2)" />
+
+          <!-- ================================================================
+               TOP PARADIGM COMPARISON STRIP (AUTOREGRESSIVE VS BLOCK DIFFUSION)
+               ================================================================ -->
+          <!-- Left: Autoregressive Bottleneck -->
+          <rect x="20" y="18" width="555" height="86" rx="10" fill="var(--svg-mask)" />
+          <rect x="20" y="18" width="555" height="86" rx="10" fill="var(--gc-red-soft)" stroke="var(--gc-red)" stroke-width="1.5" stroke-dasharray="5,3" />
+          <text x="38" y="42" fill="var(--gc-red)" font-size="12" font-weight="700">Traditional Autoregressive LLM — O(N) Sequential Token Decoding (350–900 ms)</text>
+          <text x="38" y="63" fill="var(--text-secondary)" font-size="10">Prompt → [Token 1] → [Token 2] → [Token 3] → ... → [Token N] (Sequential KV-Cache Memory Bottleneck)</text>
+          <text x="38" y="83" fill="var(--text-muted)" font-size="10">Drawback: Causal left-to-right attention cannot see later slots; verbalized confidence is overconfident.</text>
+
+          <!-- Right: System-1 Discrete Block Diffusion -->
+          <rect x="605" y="18" width="555" height="86" rx="10" fill="var(--svg-mask)" />
+          <rect x="605" y="18" width="555" height="86" rx="10" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.8" />
+          <text x="623" y="42" fill="var(--gc-green)" font-size="12" font-weight="700">System-1 Discrete Block Diffusion — O(1) Single Bidirectional Pass (57 ms p50)</text>
+          <text x="623" y="63" fill="var(--text-primary)" font-size="10">Prompt + [MASK_1 ... MASK_128] ──(1 Forward Pass on G4)──► All M Structured Slots Denoised in Parallel!</text>
+          <text x="623" y="83" fill="var(--gc-green)" font-size="10" font-weight="600">Advantage: Full bidirectional attention across all slots + exact logit marginals for entropy routing.</text>
+
+          <!-- ================================================================
+               MAIN 5-STAGE SYSTEM-1 PIPELINE BOUNDARY
+               ================================================================ -->
+          <rect x="20" y="120" width="1140" height="444" rx="12" fill="var(--gc-blue-soft)" stroke="var(--gc-blue)" stroke-width="1.5" stroke-dasharray="8,4" />
+          <text x="38" y="144" fill="var(--gc-blue)" font-size="12" font-weight="700">5-Stage System-1 Discrete Diffusion &amp; Calibrated Hesitation Cascade Pipeline</text>
+
+          <!-- Arrows between the 5 Stages (Z-ordered behind boxes) -->
+          <line x1="236" y1="290" x2="260" y2="290" stroke="var(--gc-blue)" stroke-width="2.2" marker-end="url(#arrow-blue)" />
+          <line x1="477" y1="290" x2="501" y2="290" stroke="var(--gc-green)" stroke-width="2.2" marker-end="url(#arrow-green)" />
+          <line x1="718" y1="290" x2="742" y2="290" stroke="var(--gc-amber)" stroke-width="2.2" marker-end="url(#arrow-amber)" />
+          <!-- Branching arrows from Stage 4 to Stage 5A (Fast Path) and Stage 5B (Stage 2 Escalation) -->
+          <path d="M 929 250 L 942 250 L 942 220 L 952 220" fill="none" stroke="var(--gc-green)" stroke-width="2.2" marker-end="url(#arrow-green)" />
+          <path d="M 929 330 L 942 330 L 942 360 L 952 360" fill="none" stroke="var(--gc-purple)" stroke-width="2.2" marker-end="url(#arrow-purple)" />
+
+          <!-- STAGE 1: Document-First Multi-Slot Canvas -->
+          <rect x="36" y="160" width="200" height="262" rx="8" fill="var(--svg-mask)" />
+          <rect x="36" y="160" width="200" height="262" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="136" y="183" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">1. Multi-Slot Canvas</text>
+          <text x="136" y="201" fill="var(--gc-blue)" font-size="10" font-weight="600" text-anchor="middle">document_first Layout</text>
+          <rect x="48" y="213" width="176" height="58" rx="5" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="56" y="230" fill="var(--text-primary)" font-size="10" font-weight="600">Shared SKU Prefix:</text>
+          <text x="56" y="246" fill="var(--text-secondary)" font-size="9.5">• Title, Bullet Specs, OCR</text>
+          <text x="56" y="261" fill="var(--text-secondary)" font-size="9.5">• Optional SigLIP Image</text>
+
+          <rect x="48" y="280" width="176" height="82" rx="5" fill="var(--svg-submask)" stroke="var(--gc-blue)" stroke-width="1" />
+          <text x="56" y="297" fill="var(--gc-blue)" font-size="10" font-weight="600">128-Token Masked Block:</text>
+          <text x="56" y="314" fill="var(--text-secondary)" font-size="9.5">Slot 1 (hazmat): [MASK]</text>
+          <text x="56" y="330" fill="var(--text-secondary)" font-size="9.5">Slot 2 (dept):   [MASK]</text>
+          <text x="56" y="346" fill="var(--text-secondary)" font-size="9.5">Slot 3 (score):  [MASK]</text>
+          <text x="136" y="386" fill="var(--text-secondary)" font-size="10" text-anchor="middle">All M questions packed</text>
+          <text x="136" y="403" fill="var(--gc-blue)" font-size="10" font-weight="600" text-anchor="middle">into 1 shared prompt</text>
+
+          <!-- STAGE 2: Single-Pass Bidirectional Denoising -->
+          <rect x="262" y="160" width="215" height="262" rx="8" fill="var(--svg-mask)" />
+          <rect x="262" y="160" width="215" height="262" rx="8" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.8" />
+          <text x="369" y="183" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">2. Block Denoising</text>
+          <text x="369" y="201" fill="var(--gc-green)" font-size="10" font-weight="600" text-anchor="middle">DiffusionGemma 26B-A4B</text>
+          <text x="275" y="224" fill="var(--text-secondary)" font-size="10">• MoE Architecture (4B Active</text>
+          <text x="275" y="240" fill="var(--text-secondary)" font-size="10">  Params per Token)</text>
+          <text x="275" y="260" fill="var(--text-secondary)" font-size="10">• ModelOpt NVFP4 (W4A4)</text>
+          <text x="275" y="276" fill="var(--text-secondary)" font-size="10">  Weights on Blackwell SM120</text>
+          <text x="275" y="296" fill="var(--text-secondary)" font-size="10">• Bidirectional Attention:</text>
+          <text x="275" y="312" fill="var(--text-secondary)" font-size="10">  Every slot attends to full</text>
+          <text x="275" y="328" fill="var(--text-secondary)" font-size="10">  SKU &amp; sibling slots</text>
+          <rect x="276" y="346" width="187" height="60" rx="6" fill="var(--svg-submask)" stroke="var(--gc-green)" stroke-width="1.2" />
+          <text x="369" y="368" fill="var(--gc-green)" font-size="11" font-weight="700" text-anchor="middle">1 Forward Pass = Done</text>
+          <text x="369" y="386" fill="var(--text-primary)" font-size="10" font-weight="600" text-anchor="middle">57 ms p50 | 67 ms p99</text>
+          <text x="369" y="400" fill="var(--text-muted)" font-size="9.5" text-anchor="middle">Zero autoregressive loops</text>
+
+          <!-- STAGE 3: Exact Slot Logit Readout -->
+          <rect x="503" y="160" width="215" height="262" rx="8" fill="var(--svg-mask)" />
+          <rect x="503" y="160" width="215" height="262" rx="8" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="610" y="183" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">3. Exact Slot Logits</text>
+          <text x="610" y="201" fill="var(--gc-amber)" font-size="10" font-weight="600" text-anchor="middle">Constrained Vocabulary Slice</text>
+
+          <rect x="516" y="214" width="189" height="56" rx="5" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="525" y="232" fill="var(--gc-amber)" font-size="10" font-weight="700">noul (Boolean Slot):</text>
+          <text x="525" y="248" fill="var(--text-secondary)" font-size="9.5">Slices z = [z("Yes"), z("No")]</text>
+          <text x="525" y="262" fill="var(--text-secondary)" font-size="9.5">Binary compliance / QA flag</text>
+
+          <rect x="516" y="278" width="189" height="62" rx="5" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="525" y="295" fill="var(--gc-amber)" font-size="10" font-weight="700">choice (Categorical Slot):</text>
+          <text x="525" y="311" fill="var(--text-secondary)" font-size="9.5">Slices z = [z("A")..z("F")]</text>
+          <text x="525" y="326" fill="var(--text-secondary)" font-size="9.5">Or 32-Way 2-Stage Bracket</text>
+
+          <rect x="516" y="348" width="189" height="60" rx="5" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="525" y="365" fill="var(--gc-amber)" font-size="10" font-weight="700">score (Likert 1..5 Slot):</text>
+          <text x="525" y="381" fill="var(--text-secondary)" font-size="9.5">Expected Value Readout:</text>
+          <text x="525" y="397" fill="var(--text-primary)" font-size="10" font-weight="600">E[S] = Σ k · p_k ∈ [1.0, 5.0]</text>
+
+          <!-- STAGE 4: Post-Hoc Temperature Calibration & Entropy -->
+          <rect x="744" y="160" width="185" height="262" rx="8" fill="var(--svg-mask)" />
+          <rect x="744" y="160" width="185" height="262" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="836" y="183" fill="var(--text-primary)" font-size="12" font-weight="700" text-anchor="middle">4. Calibration T*</text>
+          <text x="836" y="201" fill="var(--gc-blue)" font-size="10" font-weight="600" text-anchor="middle">Domain Temperature Fit</text>
+
+          <rect x="756" y="214" width="161" height="58" rx="5" fill="var(--svg-submask)" stroke="var(--gc-blue)" stroke-width="1" />
+          <text x="836" y="235" fill="var(--text-primary)" font-size="10" font-weight="700" text-anchor="middle">p_i(T*) = softmax(z_i / T*)</text>
+          <text x="836" y="253" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">Fitted on 60–250 SKUs</text>
+          <text x="836" y="266" fill="var(--gc-green)" font-size="9.5" font-weight="600" text-anchor="middle">Cuts ECE by ~50%</text>
+
+          <rect x="756" y="284" width="161" height="72" rx="5" fill="var(--svg-submask)" stroke="var(--gc-red)" stroke-width="1" />
+          <text x="836" y="303" fill="var(--gc-red)" font-size="10" font-weight="700" text-anchor="middle">Normalized Entropy:</text>
+          <text x="836" y="322" fill="var(--text-primary)" font-size="10" font-weight="700" text-anchor="middle">H_norm = H(p) / ln(K)</text>
+          <text x="836" y="340" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">Scale-free ∈ [0.0, 1.0]</text>
+
+          <text x="836" y="378" fill="var(--text-secondary)" font-size="10" text-anchor="middle">Compares H_norm against</text>
+          <text x="836" y="396" fill="var(--gc-red)" font-size="11" font-weight="700" text-anchor="middle">Threshold τ = 0.16</text>
+
+          <!-- STAGE 5A: Fast Path (H/ln K < 0.16) -->
+          <rect x="954" y="160" width="190" height="122" rx="8" fill="var(--svg-mask)" />
+          <rect x="954" y="160" width="190" height="122" rx="8" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.8" />
+          <text x="1049" y="182" fill="var(--gc-green)" font-size="12" font-weight="700" text-anchor="middle">5A. Stage 1 Fast Path</text>
+          <text x="1049" y="200" fill="var(--text-primary)" font-size="10" font-weight="700" text-anchor="middle">H / ln(K) &lt; 0.16 (~75–85%)</text>
+          <text x="966" y="220" fill="var(--text-secondary)" font-size="9.5">• High-confidence slot</text>
+          <text x="966" y="236" fill="var(--text-secondary)" font-size="9.5">• Returns Stage 1 immediately</text>
+          <text x="966" y="254" fill="var(--gc-green)" font-size="10" font-weight="700">• Latency: 57 ms | Cost: $0 API</text>
+          <text x="966" y="270" fill="var(--gc-green)" font-size="10" font-weight="700">• Empirical Acc: 100.0%</text>
+
+          <!-- STAGE 5B: Selective Stage 2 Escalation (H/ln K >= 0.16) -->
+          <rect x="954" y="300" width="190" height="122" rx="8" fill="var(--svg-mask)" />
+          <rect x="954" y="300" width="190" height="122" rx="8" fill="var(--gc-purple-fill)" stroke="var(--gc-purple)" stroke-width="1.8" />
+          <text x="1049" y="322" fill="var(--gc-purple)" font-size="12" font-weight="700" text-anchor="middle">5B. Stage 2 Escalation</text>
+          <text x="1049" y="340" fill="var(--text-primary)" font-size="10" font-weight="700" text-anchor="middle">H / ln(K) ≥ 0.16 (~15–25%)</text>
+          <text x="966" y="360" fill="var(--text-secondary)" font-size="9.5">• Escalates ONLY uncertain slot</text>
+          <text x="966" y="376" fill="var(--text-secondary)" font-size="9.5">• Injects Stage 1 soft prior</text>
+          <text x="966" y="394" fill="var(--gc-purple)" font-size="10" font-weight="700">• Vertex AI: gemini-3.5-flash-lite</text>
+          <text x="966" y="410" fill="var(--text-secondary)" font-size="9.5">• Resolves spec contradictions</text>
+
+          <!-- ================================================================
+               BOTTOM STRIP: 2-STAGE 32-CATEGORY RETAIL TAXONOMY TOURNAMENT
+               ================================================================ -->
+          <rect x="36" y="438" width="1108" height="110" rx="8" fill="var(--svg-mask)" />
+          <rect x="36" y="438" width="1108" height="110" rx="8" fill="var(--gc-amber-soft)" stroke="var(--gc-amber)" stroke-width="1.4" />
+          <text x="54" y="461" fill="var(--gc-amber)" font-size="11" font-weight="700">DEEP TAXONOMY SCALING — How DGEM Evaluates 32+ Retail Categories Without Autoregressive Letter Bias:</text>
+
+          <!-- Bracket Step 1 -->
+          <rect x="54" y="473" width="320" height="62" rx="6" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="68" y="493" fill="var(--text-primary)" font-size="10" font-weight="700">Round 1: 6 Parallel Sub-Groups (A–F)</text>
+          <text x="68" y="510" fill="var(--text-secondary)" font-size="9.5">32 categories split into 6 balanced groups of ≤6 options.</text>
+          <text x="68" y="525" fill="var(--gc-green)" font-size="9.5" font-weight="600">All 6 groups evaluated in 1 batched G4 pass!</text>
+
+          <line x1="374" y1="504" x2="412" y2="504" stroke="var(--gc-amber)" stroke-width="2" marker-end="url(#arrow-amber)" />
+
+          <!-- Bracket Step 2 -->
+          <rect x="416" y="473" width="330" height="62" rx="6" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="430" y="493" fill="var(--text-primary)" font-size="10" font-weight="700">Round 2: Top-2 Group Winner Bracket</text>
+          <text x="430" y="510" fill="var(--text-secondary)" font-size="9.5">Selects winning category from top 2 highest-confidence</text>
+          <text x="430" y="525" fill="var(--gc-amber)" font-size="9.5" font-weight="600">groups + computes combined bracket entropy H_norm.</text>
+
+          <line x1="746" y1="504" x2="784" y2="504" stroke="var(--gc-purple)" stroke-width="2" marker-end="url(#arrow-purple)" />
+
+          <!-- Bracket Step 3 -->
+          <rect x="788" y="473" width="338" height="62" rx="6" fill="var(--svg-submask)" stroke="var(--border-color)" stroke-width="1" />
+          <text x="802" y="493" fill="var(--text-primary)" font-size="10" font-weight="700">Round 3: Selective Top-2 Tie-Breaker</text>
+          <text x="802" y="510" fill="var(--text-secondary)" font-size="9.5">If finalist margin is narrow (H/ln K ≥ τ), escalates ONLY</text>
+          <text x="802" y="525" fill="var(--gc-purple)" font-size="9.5" font-weight="600">the 2 finalist categories to gemini-3.5-flash-lite.</text>
+
+          <!-- ================================================================
+               EXTERNAL LEGEND (STRICTLY BELOW Y=564 BOUNDARY AT Y=584)
+               ================================================================ -->
+          <rect x="20" y="584" width="1140" height="48" rx="8" fill="var(--svg-mask)" stroke="var(--border-color)" stroke-width="1.2" />
+          <text x="38" y="612" fill="var(--text-primary)" font-size="11" font-weight="700">STAGE KEY:</text>
+
+          <rect x="125" y="601" width="16" height="14" rx="3" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="147" y="612" fill="var(--text-secondary)" font-size="10">Prompt Canvas &amp; Temp Calibration (T*)</text>
+
+          <rect x="385" y="601" width="16" height="14" rx="3" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.5" />
+          <text x="407" y="612" fill="var(--text-secondary)" font-size="10">Single-Pass Block Denoising &amp; Fast Path</text>
+
+          <rect x="665" y="601" width="16" height="14" rx="3" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="687" y="612" fill="var(--text-secondary)" font-size="10">Constrained Logit Slicing &amp; 32-Cat Bracket</text>
+
+          <rect x="945" y="601" width="16" height="14" rx="3" fill="var(--gc-purple-fill)" stroke="var(--gc-purple)" stroke-width="1.5" />
+          <text x="967" y="612" fill="var(--text-secondary)" font-size="10">Stage 2 gemini-3.5-flash-lite Gate</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 4: INTERACTIVE RETAIL PRODUCT CATALOG ENRICHMENT SIMULATOR
+         ====================================================================== -->
+    <section id="retail-simulator" class="section">
+      <div class="section-header">
+        <div class="eyebrow">
+          <span class="pulse-dot" style="background:var(--gc-purple)"></span>
+          <span>Interactive Decision Studio • Retail Product Catalog Enrichment</span>
+        </div>
+        <h2>Live Multi-Slot Retail Catalog Enrichment &amp; Hesitation Gate Simulator</h2>
+        <p class="lead">
+          Explore how `DiffusionGemma 26B-A4B NVFP4` evaluates multiple retail catalog attributes in a single `57 ms` forward pass, and drag the <strong>Normalized Entropy Threshold ($\tau$)</strong> slider to see how individual slots dynamically route between the <strong>Stage 1 G4 Fast Path</strong> and <strong>Stage 2 Vertex AI `gemini-3.5-flash-lite`</strong>.
+        </p>
+      </div>
+
+      <div class="sim-wrapper">
+        <div class="sim-controls-bar">
+          <div class="tab-group" role="tablist" aria-label="Retail Enrichment Schema">
+            <button id="tab-merch" class="tab-btn active" type="button" onclick="selectScenario('merch')">1. Merchandising &amp; Compliance (4 Slots)</button>
+            <button id="tab-tax" class="tab-btn" type="button" onclick="selectScenario('taxonomy')">2. Deep 32-Category Taxonomy (2-Stage Bracket)</button>
+            <button id="tab-qa" class="tab-btn" type="button" onclick="selectScenario('qa')">3. Catalog QA &amp; Conflict Detection</button>
+          </div>
+
+          <div class="sku-toggle-group">
+            <button id="btn-sku-clear" class="sku-btn active-fast" type="button" onclick="selectSkuMode('clear')">⚡ Clear SKU (57 ms Stage 1 Fast Path)</button>
+            <button id="btn-sku-ambig" class="sku-btn" type="button" onclick="selectSkuMode('ambiguous')">🔍 Ambiguous Edge-Case SKU (Stage 2 Override)</button>
+          </div>
+        </div>
+
+        <!-- Interactive Threshold Slider -->
+        <div class="threshold-bar">
+          <label for="tau-slider">Hesitation Gate Threshold ($\tau = H / \ln K$):</label>
+          <input id="tau-slider" class="threshold-slider" type="range" min="0.04" max="0.45" step="0.01" value="0.16" oninput="updateSimulator()" />
+          <span id="tau-display" class="mono" style="font-weight:700; color:var(--gc-blue); font-size:0.95rem">τ = 0.16 (Recommended Production Default)</span>
+        </div>
+
+        <div class="sim-grid">
+          <!-- Left: Raw SKU Input & Schema Spec -->
+          <div class="sku-input-panel">
+            <div class="panel-title">
+              <span>Input SKU Payload (`document_first` Prefix)</span>
+              <span id="sim-sku-id" style="color:var(--gc-blue)">SKU-88412-CLEAR</span>
+            </div>
+            <div id="sim-sku-text" class="sku-box"></div>
+
+            <div class="panel-title" style="margin-top:1rem">
+              <span>Live Routing &amp; Latency Telemetry</span>
+              <span id="sim-route-badge" class="badge badge-s1">100% STAGE 1 FAST PATH</span>
+            </div>
+            <div id="sim-telemetry-summary" class="sku-box" style="margin-bottom:0"></div>
+          </div>
+
+          <!-- Right: Multi-Slot Probability & Entropy Readout -->
+          <div class="sku-output-panel">
+            <div class="panel-title">
+              <span>Simultaneous Multi-Slot Logit Readout &amp; Gate Decision</span>
+              <span>Calibrated $p_i(T^*)$</span>
+            </div>
+            <div id="sim-slots-container"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reference Links & Documentation Hub -->
+      <div class="ref-grid" style="margin-top:2rem">
+        <a class="ref-card" href="https://github.com/GoogleCloudPlatform/dgem" target="_blank" rel="noopener noreferrer">
+          <div class="ref-card-title">📦 GoogleCloudPlatform/dgem Repository ↗</div>
+          <div class="ref-card-desc">Reference implementation for `dgem serve`, `structured_server.py`, post-hoc temperature calibration (`dgem calibrate`), and 2-stage tournament brackets.</div>
+        </a>
+
+        <a class="ref-card" href="https://cloud.google.com/kubernetes-engine/docs/how-to/gpus" target="_blank" rel="noopener noreferrer">
+          <div class="ref-card-title">⚡ GKE G4 (`RTX PRO 6000 Blackwell`) GPUs ↗</div>
+          <div class="ref-card-desc">Official Google Kubernetes Engine documentation for `g4-standard-48` nodes, `nvidia-rtx-pro-6000` accelerators, and Custom ComputeClasses.</div>
+        </a>
+
+        <a class="ref-card" href="https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-5-flash-lite" target="_blank" rel="noopener noreferrer">
+          <div class="ref-card-title">🧠 Vertex AI `gemini-3.5-flash-lite` (Stage 2) ↗</div>
+          <div class="ref-card-desc">Low-latency, cost-efficient Stage 2 reasoning model for resolving the 15–25% of ambiguous or contradictory catalog slots flagged by the entropy gate.</div>
+        </a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div>Google Cloud GKE G4 &amp; Vertex AI Reference Architecture • System-1 Discrete Diffusion (`DiffusionGemma 26B-A4B NVFP4`)</div>
+      <div class="mono">57 ms p50 Stage 1 • 7.91 s Spot Fast-Start • Selective gemini-3.5-flash-lite Cascade</div>
+    </footer>
+  </main>
+
+  <!-- ========================================================================
+       INLINE JAVASCRIPT FOR THEME SWITCHING & LIVE RETAIL SIMULATOR
+       ======================================================================== -->
+  <script>
+    const SCENARIOS = {
+      merch: {
+        clear: {
+          skuId: "SKU-88412-CLEAR",
+          skuText: "Title: Kidde Pro 210 Rechargeable Dry Chemical Fire Extinguisher (UL Listed 2-A:10-B:C)\nSpecs:\n• Pressurized monoammonium phosphate dry chemical cylinder (4 lb payload)\n• Heavy-duty anodized aluminum valve assembly with pressure gauge\n• Includes UL-approved wall mounting bracket\n• Operating pressure: 195 PSI (Compressed Nitrogen propellant)",
+          slots: [
+            {
+              name: "slot_1: restricted_hazmat (noul)",
+              type: "Boolean (Yes / No)",
+              s1Answer: "Yes (Class 2.2 Compressed Gas)",
+              prob: 0.988,
+              entropy: 0.04,
+              s2Answer: "Yes (Class 2.2 Compressed Gas)",
+              s2Note: "Unambiguous pressurized cylinder (195 PSI) — Stage 1 resolves directly."
+            },
+            {
+              name: "slot_2: primary_department (choice A–F)",
+              type: "6-Way Choice (T* = 1.18)",
+              s1Answer: "D: Hardware & Safety Equipment",
+              prob: 0.979,
+              entropy: 0.06,
+              s2Answer: "D: Hardware & Safety Equipment",
+              s2Note: "Fire safety equipment maps cleanly to Hardware & Safety."
+            },
+            {
+              name: "slot_3: lithium_battery_flag (noul)",
+              type: "Boolean (Yes / No)",
+              s1Answer: "No (Mechanical / Chemical Only)",
+              prob: 0.994,
+              entropy: 0.02,
+              s2Answer: "No (Mechanical / Chemical Only)",
+              s2Note: "'Rechargeable' refers to cylinder refilling, not a lithium-ion cell."
+            },
+            {
+              name: "slot_4: merchandising_completeness (score 1–5)",
+              type: "Likert Expected Value E[S]",
+              s1Answer: "4.82 / 5.00 (p5=0.84, p4=0.14)",
+              prob: 0.940,
+              entropy: 0.11,
+              s2Answer: "4.82 / 5.00",
+              s2Note: "Complete UL rating, PSI spec, chemical agent, and mounting hardware listed."
+            }
+          ]
+        },
+        ambiguous: {
+          skuId: "SKU-90219-CONFLICT",
+          skuText: "Title: AeroGlow Luxury Ultrasonic Aroma Diffuser & Travel Starter Set\nSpecs:\n• Brushed aluminum housing with USB-C cord (5V DC input)\n• Bullet 2: 'Cordless 12-hour runtime on integrated 5200mAh Li-Ion pack'\n• Bullet 4: 'No batteries included or required — ships air-safe standard mail'\n• Includes 15mL Pure Organic Eucalyptus Essential Oil vial (Flash point: 49°C)",
+          slots: [
+            {
+              name: "slot_1: restricted_hazmat (noul)",
+              type: "Boolean (Yes / No)",
+              s1Answer: "Yes (Uncertain: p=0.69 Yes vs 0.31 No)",
+              prob: 0.690,
+              entropy: 0.34,
+              s2Answer: "Yes — Dual Hazmat (UN3481 Li-Ion + Flammable Liquid Flash Point 49°C)",
+              s2Note: "Stage 2 gemini-3.5-flash-lite catches the 49°C flammable essential oil flash point AND the contradictory battery bullets."
+            },
+            {
+              name: "slot_2: primary_department (choice A–F)",
+              type: "6-Way Choice (T* = 1.18)",
+              s1Answer: "B: Home Fragrance & Decor",
+              prob: 0.968,
+              entropy: 0.08,
+              s2Answer: "B: Home Fragrance & Decor",
+              s2Note: "Low entropy (0.08 < τ) — kept directly from Stage 1 without Stage 2 token spend!"
+            },
+            {
+              name: "slot_3: lithium_battery_flag (noul)",
+              type: "Boolean (Yes / No)",
+              s1Answer: "Yes (Uncertain: p=0.58 Yes vs 0.42 No)",
+              prob: 0.580,
+              entropy: 0.41,
+              s2Answer: "Yes — Flagged for UN3481 Compliance Hold (Bullet 2 vs Bullet 4 Conflict)",
+              s2Note: "Stage 1 entropy spikes (0.41 >= τ) due to Bullet 2 ('5200mAh Li-Ion') contradicting Bullet 4 ('No batteries'). Stage 2 places safety hold."
+            },
+            {
+              name: "slot_4: merchandising_completeness (score 1–5)",
+              type: "Likert Expected Value E[S]",
+              s1Answer: "2.15 / 5.00 (Contradictory Specs)",
+              prob: 0.915,
+              entropy: 0.13,
+              s2Answer: "2.15 / 5.00",
+              s2Note: "Stage 1 quality score cleanly penalizes inconsistent vendor copy."
+            }
+          ]
+        }
+      },
+      taxonomy: {
+        clear: {
+          skuId: "SKU-33104-TAXONOMY-CLEAR",
+          skuText: "Title: Shimano Ultegra PD-R8000 Carbon SPD-SL Road Bike Clipless Pedals\nSpecs:\n• Carbon-composite body with extra-wide stainless steel body plate\n• Adjustable entry and release tension settings (80g pair weight savings)\n• Includes SM-SH11 6-degree float yellow cleats",
+          slots: [
+            {
+              name: "bracket_group_1_to_6: Stage 1 Parallel Group Winners",
+              type: "6x6 Batched Tournament Pass",
+              s1Answer: "Group 4 Winner: Cycling Components (p=0.984) | Runner-Up Group 2: Fitness (p=0.19)",
+              prob: 0.984,
+              entropy: 0.05,
+              s2Answer: "Group 4: Cycling Components",
+              s2Note: "All 6 category groups evaluated in a single batched G4 forward pass."
+            },
+            {
+              name: "final_leaf_category: 32-Way Taxonomy Selection",
+              type: "Top-2 Finalist Bracket",
+              s1Answer: "Cat #19: Sports & Outdoors > Cycling > Drivetrain & Pedals",
+              prob: 0.976,
+              entropy: 0.07,
+              s2Answer: "Cat #19: Sports & Outdoors > Cycling > Drivetrain & Pedals",
+              s2Note: "Normalized entropy 0.07 < τ — zero Stage 2 escalation needed."
+            }
+          ]
+        },
+        ambiguous: {
+          skuId: "SKU-77419-TAXONOMY-CROSSOVER",
+          skuText: "Title: Garmin Descent Mk3i Titanium Dive Computer & Multisport GPS Smartwatch (51mm)\nSpecs:\n• SubWave sonar air integration + 200m dive-rated sapphire lens\n• Full AMOLED smartwatch notifications, ECG app, Garmin Pay, and TopoActive running maps",
+          slots: [
+            {
+              name: "bracket_group_1_to_6: Stage 1 Parallel Group Winners",
+              type: "6x6 Batched Tournament Pass",
+              s1Answer: "Group 1 Winner: Wearable Consumer Electronics (p=0.54) vs Group 4 Winner: Water Sports & Diving Gear (p=0.46)",
+              prob: 0.540,
+              entropy: 0.38,
+              s2Answer: "Escalated Top-2 Finalists to Stage 2 Verifier",
+              s2Note: "Stage 1 narrows 32 categories down to the exact 2 competing leaf categories in 57 ms."
+            },
+            {
+              name: "final_leaf_category: 32-Way Taxonomy Selection",
+              type: "Top-2 Finalist Tie-Breaker",
+              s1Answer: "Tie: Cat #04 (Smartwatches) vs Cat #22 (Dive Computers & Gauges)",
+              prob: 0.525,
+              entropy: 0.39,
+              s2Answer: "Cat #22: Sports & Outdoors > Scuba & Freediving > Dive Computers (Primary Margin Rule: 200m SubWave Air Integration)",
+              s2Note: "gemini-3.5-flash-lite receives ONLY the 2 finalist categories from Stage 1 and applies merchandising taxonomy priority rules."
+            }
+          ]
+        }
+      },
+      qa: {
+        clear: {
+          skuId: "SKU-55190-QA-PASS",
+          skuText: "Title: Le Creuset Signature Enameled Cast Iron 5.5-Quart Round Dutch Oven — Cerise Red\nImage SigLIP Tokens: [Red round enameled cast iron pot with matching lid and two loop handles]\nSpecs: 5.5 qt capacity, oven-safe to 500°F, dishwasher safe, made in France.",
+          slots: [
+            {
+              name: "qa_slot_1: title_image_visual_match (noul)",
+              type: "Multimodal SigLIP + Text",
+              s1Answer: "Yes (Title 'Cerise Red 5.5-Qt Dutch Oven' matches image)",
+              prob: 0.991,
+              entropy: 0.03,
+              s2Answer: "Yes",
+              s2Note: "Multimodal Vision + Text tokens verified in 1 forward pass."
+            },
+            {
+              name: "qa_slot_2: unit_dimension_consistency (choice)",
+              type: "4-Way QA Audit",
+              s1Answer: "A: Consistent Volume & Thermal Ratings",
+              prob: 0.972,
+              entropy: 0.07,
+              s2Answer: "A: Consistent Volume & Thermal Ratings",
+              s2Note: "No conflicting dimensions or temperature limits."
+            }
+          ]
+        },
+        ambiguous: {
+          skuId: "SKU-55902-QA-MISMATCH",
+          skuText: "Title: Dyson V15 Detect Cordless Stick Vacuum Cleaner (Yellow/Nickel)\nImage SigLIP Tokens: [Countertop stainless steel espresso machine with milk frother wand]\nSpecs: 240 AW suction, Piezo dust sensor, 60-minute run time, 12-cup glass carafe included.",
+          slots: [
+            {
+              name: "qa_slot_1: title_image_visual_match (noul)",
+              type: "Multimodal SigLIP + Text",
+              s1Answer: "No (Image shows Espresso Machine vs Vacuum Title)",
+              prob: 0.985,
+              entropy: 0.05,
+              s2Answer: "No — Catalog Image Corruption Detected",
+              s2Note: "Stage 1 immediately catches the gross image mismatch with low entropy (0.05)."
+            },
+            {
+              name: "qa_slot_2: remediation_action_plan (choice)",
+              type: "6-Way Remediation Routing",
+              s1Answer: "C: Quarantine SKU & Request Vendor Feed Resync (p=0.61 vs D: Auto-Strip Carafe Bullet p=0.39)",
+              prob: 0.610,
+              entropy: 0.29,
+              s2Answer: "C: Quarantine SKU & Generate Automated Vendor Ticket (Cross-SKU Join Error: Vacuum + Coffee Maker attributes merged)",
+              s2Note: "Stage 2 diagnoses root cause (corrupted database join between vacuum and coffee maker SKUs) and drafts structured remediation."
+            }
+          ]
+        }
+      }
+    };
+
+    let currentScenario = "merch";
+    let currentSkuMode = "clear";
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute("data-theme") || "dark";
+      const next = current === "dark" ? "light" : "dark";
+      html.setAttribute("data-theme", next);
+
+      const icon = document.getElementById("theme-icon");
+      const label = document.getElementById("theme-label");
+      if (next === "light") {
+        icon.textContent = "🌙";
+        label.textContent = "Switch to Dark Mode";
+      } else {
+        icon.textContent = "☀️";
+        label.textContent = "Switch to Light Mode";
+      }
+    }
+
+    function selectScenario(scenarioKey) {
+      currentScenario = scenarioKey;
+      document.getElementById("tab-merch").classList.toggle("active", scenarioKey === "merch");
+      document.getElementById("tab-tax").classList.toggle("active", scenarioKey === "taxonomy");
+      document.getElementById("tab-qa").classList.toggle("active", scenarioKey === "qa");
+      updateSimulator();
+    }
+
+    function selectSkuMode(mode) {
+      currentSkuMode = mode;
+      const btnClear = document.getElementById("btn-sku-clear");
+      const btnAmbig = document.getElementById("btn-sku-ambig");
+      btnClear.className = mode === "clear" ? "sku-btn active-fast" : "sku-btn";
+      btnAmbig.className = mode === "ambiguous" ? "sku-btn active-escalate" : "sku-btn";
+      updateSimulator();
+    }
+
+    function updateSimulator() {
+      const tau = parseFloat(document.getElementById("tau-slider").value);
+      const tauDisplay = document.getElementById("tau-display");
+      tauDisplay.textContent = `τ = ${tau.toFixed(2)}${Math.abs(tau - 0.16) < 0.005 ? " (Recommended Production Default)" : ""}`;
+
+      const data = SCENARIOS[currentScenario][currentSkuMode];
+      document.getElementById("sim-sku-id").textContent = data.skuId;
+      document.getElementById("sim-sku-text").textContent = data.skuText;
+
+      const container = document.getElementById("sim-slots-container");
+      container.innerHTML = "";
+
+      let escalatedCount = 0;
+      data.slots.forEach((slot) => {
+        const isEscalated = slot.entropy >= tau;
+        if (isEscalated) escalatedCount++;
+
+        const card = document.createElement("div");
+        card.className = "slot-card";
+
+        const badgeClass = isEscalated ? "badge badge-s2" : "badge badge-s1";
+        const badgeText = isEscalated
+          ? `STAGE 2 ESCALATED (H/ln K = ${slot.entropy.toFixed(2)} ≥ ${tau.toFixed(2)})`
+          : `STAGE 1 FAST PATH (H/ln K = ${slot.entropy.toFixed(2)} < ${tau.toFixed(2)})`;
+
+        const meterColor = isEscalated ? "var(--gc-purple-strong)" : "var(--gc-green-strong)";
+        const meterWidth = Math.min(100, Math.round(slot.entropy * 200));
+
+        const finalDecision = isEscalated ? slot.s2Answer : slot.s1Answer;
+
+        card.innerHTML = `
+          <div class="slot-top">
+            <span class="slot-name">${slot.name}</span>
+            <span class="${badgeClass}">${badgeText}</span>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.35rem;">
+            <strong>Slot Type:</strong> ${slot.type} &nbsp;|&nbsp; <strong>Stage 1 Top Prob:</strong> <span class="mono">${(slot.prob * 100).toFixed(1)}%</span>
+          </div>
+          <div class="meter-track" title="Normalized Entropy H/ln(K)">
+            <div class="meter-fill" style="width:${meterWidth}%; background:${meterColor}"></div>
+          </div>
+          <div style="font-size:0.82rem; color:var(--text-primary); margin-top:0.45rem;">
+            <strong>Final Output:</strong> <span class="mono" style="color:${isEscalated ? 'var(--gc-purple)' : 'var(--gc-green)'}; font-weight:600;">${finalDecision}</span>
+          </div>
+          <div style="font-size:0.76rem; color:var(--text-muted); margin-top:0.25rem;">
+            ${slot.s2Note}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const routeBadge = document.getElementById("sim-route-badge");
+      const telemetryBox = document.getElementById("sim-telemetry-summary");
+      const totalSlots = data.slots.length;
+
+      if (escalatedCount === 0) {
+        routeBadge.className = "badge badge-s1";
+        routeBadge.textContent = `100% STAGE 1 FAST PATH (0/${totalSlots} Escalated)`;
+        telemetryBox.textContent =
+          `• Stage 1 G4 GPU Forward Pass: 57 ms (Evaluated all ${totalSlots} slots in parallel)\n` +
+          `• Stage 2 Vertex AI Calls:     0 calls ($0.00 external API token spend)\n` +
+          `• End-to-End SKU Latency:      57 ms\n` +
+          `• Routing Outcome:             All ${totalSlots} slots satisfied H/ln(K) < ${tau.toFixed(2)}`;
+      } else {
+        routeBadge.className = "badge badge-s2";
+        routeBadge.textContent = `SELECTIVE STAGE 2 CASCADE (${escalatedCount}/${totalSlots} Slots Escalated)`;
+        telemetryBox.textContent =
+          `• Stage 1 G4 GPU Forward Pass: 57 ms (${totalSlots - escalatedCount}/${totalSlots} slots finalized immediately)\n` +
+          `• Stage 2 Vertex AI Escalation: +185 ms (gemini-3.5-flash-lite called ONLY on ${escalatedCount} high-entropy slot${escalatedCount > 1 ? 's' : ''})\n` +
+          `• Stage 1 Soft Prior Injected: Yes (stage2_prior="soft" passes p_i(T*) distribution)\n` +
+          `• End-to-End SKU Latency:      242 ms (Saved ${Math.round(((totalSlots - escalatedCount) / totalSlots) * 100)}% of Stage 2 slot tokens)`;
+      }
+    }
+
+    // Initialize simulator on load
+    updateSimulator();
+  </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "name": "Support Ticket Triage (Calibrated)",
+  "description": "Domain-calibrated triage with post-hoc temperature fitting and Gemini 3.5 Flash-Lite Stage 2 cascade.",
+  "category": "routing",
+  "layout": "document_first",
+  "isolate": "auto",
+  "schema": {
+    "instructions": "Evaluate incoming customer operations tickets across urgency, owning team, and customer frustration.",
+    "temperature": {
+      "noul": 1.10,
+      "choice": 1.20,
+      "score": 1.15
+    },
+    "questions": [
+      {
+        "name": "urgent",
+        "type": "boolean",
+        "prompt": "Does this support ticket require immediate P0/P1 escalation due to outage, security risk, or billing block?"
+      },
+      {
+        "name": "team",
+        "type": "choice",
+        "prompt": "Which specialized engineering or operations team should own this ticket?",
+        "options": {
+          "A": "billing: duplicate charges, invoices, refunds, subscription renewals",
+          "B": "technical: API errors, latency, service outages, SDK bugs",
+          "C": "account: SSO/IAM lockouts, RBAC permissions, organization transfer",
+          "D": "security: suspected compromise, leaked credentials, abuse report"
+        }
+      },
+      {
+        "name": "sentiment",
+        "type": "score",
+        "prompt": "Rate customer frustration/escalation risk from 1 (calm inquiry) to 5 (critical churn/executive escalation).",
+        "scale_min": 1,
+        "scale_max": 5,
+        "levels": ["1", "2", "3", "4", "5"]
+      }
+    ],
+    "samples": {{ default 1 .samples | toJson }}
+  },
+  "state": {
+    "ticket": {{ default "No ticket text provided." .ticket | toJson }}
+  }
+}

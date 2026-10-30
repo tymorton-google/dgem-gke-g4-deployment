@@ -1,0 +1,36 @@
+# Terraform state and local variable overrides
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Python bytecode & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Credentials & secrets (never commit service account keys or tokens)
+*.pem
+*.key
+*credentials*.json
+.env
+.env.*
+
+# OS / Editor files
+.DS_Store
+*.swp
+*~
+*.metadata.json

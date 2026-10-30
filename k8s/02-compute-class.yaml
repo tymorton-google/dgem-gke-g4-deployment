@@ -1,0 +1,76 @@
+# GKE Secondary Boot Disk Resource Allowlist (node.gke.io/v1)
+# Reference: https://cloud.google.com/kubernetes-engine/docs/how-to/data-container-image-preloading
+# Required by GKE Warden validating webhook before a ComputeClass can reference secondaryBootDisks.
+apiVersion: node.gke.io/v1
+kind: GCPResourceAllowlist
+metadata:
+  name: gke-secondary-boot-disk-allowlist
+spec:
+  allowedResourcePatterns:
+    - "projects/${PROJECT_ID}/global/images/.*"
+---
+# GKE Custom ComputeClass (cloud.google.com/v1):
+# Reference: https://cloud.google.com/kubernetes-engine/docs/reference/crds/computeclass
+# Prioritizes:
+#   1. GKE Spot G4 (with Secondary Boot Disk CONTAINER_IMAGE_CACHE)
+#   2. DWS Flex-Start G4 (Queued Provisioning with up to 7-day non-preemptible duration)
+#   3. On-Demand G4 Fallback (eligible for GKE Fast-Starting Nodes when configured with
+#      bootDiskType: hyperdisk-balanced and zero Local SSDs per
+#      https://cloud.google.com/kubernetes-engine/docs/concepts/fast-starting-nodes#g4-requirements)
+# Automatically migrates back to Spot G4 when Spot capacity recovers (activeMigration.optimizeRulePriority: true).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: dgem-g4-priority
+spec:
+  priorities:
+    # Priority 1: GKE Spot G4 with Fast-Start Secondary Boot Disk
+    - machineType: g4-standard-48
+      spot: true
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    # Priority 2: DWS Flex-Start G4 (Queued Provisioning fallback)
+    - machineType: g4-standard-48
+      flexStart:
+        enabled: true
+      maxRunDurationSeconds: 604800
+      capacityCheckWaitTimeSeconds: 300
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    # Priority 3: On-Demand G4 Fallback (GKE Fast-Starting Nodes eligible: hyperdisk-balanced + zero Local SSDs)
+    - machineType: g4-standard-48
+      spot: false
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+  activeMigration:
+    optimizeRulePriority: true

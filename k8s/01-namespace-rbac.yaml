@@ -1,0 +1,24 @@
+# Kubernetes Namespace & Workload Identity Service Accounts for dgem on GKE
+# Google Cloud Production Enterprise Security Best Practices:
+#   - Binds Kubernetes ServiceAccounts to least-privilege Google Service Accounts
+#     via GKE Workload Identity Federation (${PROJECT_ID}.svc.id.goog) with zero exported JSON keys.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dgem
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dgem-engine-ksa
+  namespace: dgem
+  annotations:
+    iam.gke.io/gcp-service-account: dgem-engine-gsa@${PROJECT_ID}.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dgem-gateway-ksa
+  namespace: dgem
+  annotations:
+    iam.gke.io/gcp-service-account: dgem-gateway-gsa@${PROJECT_ID}.iam.gserviceaccount.com

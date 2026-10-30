@@ -1,0 +1,45 @@
+{
+  "name": "Security Alert Triage (Calibrated)",
+  "description": "Domain-calibrated SOC alert triage with post-hoc temperature fitting and Gemini 3.5 Flash-Lite Stage 2 cascade.",
+  "category": "security",
+  "layout": "document_first",
+  "isolate": "auto",
+  "schema": {
+    "instructions": "Evaluate security telemetry and SIEM alerts across immediate containment, MITRE ATT&CK classification, and severity.",
+    "temperature": {
+      "noul": 1.15,
+      "choice": 1.25,
+      "score": 1.10
+    },
+    "questions": [
+      {
+        "name": "contain_immediately",
+        "type": "boolean",
+        "prompt": "Does this security alert indicate active exploitation, credential exfiltration, or lateral movement requiring immediate automated containment?"
+      },
+      {
+        "name": "incident_class",
+        "type": "choice",
+        "prompt": "What is the primary MITRE ATT&CK / SOC classification of this alert?",
+        "options": {
+          "A": "credential_access: brute force, token theft, impossible travel, SA key export",
+          "B": "privilege_escalation: unauthorized IAM policy binding, sudo abuse, container escape",
+          "C": "exfiltration: anomalous egress spike, unauthorized GCS bucket public sharing, DNS tunneling",
+          "D": "benign_activity: authorized CI/CD deployment, scheduled scanner, known maintenance window"
+        }
+      },
+      {
+        "name": "severity",
+        "type": "score",
+        "prompt": "Rate incident severity from 1 (informational/false positive) to 5 (critical active breach).",
+        "scale_min": 1,
+        "scale_max": 5,
+        "levels": ["1", "2", "3", "4", "5"]
+      }
+    ],
+    "samples": {{ default 1 .samples | toJson }}
+  },
+  "state": {
+    "alert": {{ default "No alert details provided." .alert | toJson }}
+  }
+}
