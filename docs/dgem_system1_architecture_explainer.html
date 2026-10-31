@@ -1,19 +1,4 @@
 <!DOCTYPE html>
-<!--
- Copyright 2026 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     https://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
--->
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
@@ -81,12 +66,12 @@
     }
 
     [data-theme="dark"] {
-      --bg-primary: #0b0f19;
-      --bg-secondary: #111827;
+      --bg-primary: #060911;
+      --bg-secondary: #0b0f19;
       --bg-card: #161f33;
       --bg-card-hover: #1d2942;
       --bg-elevated: #1e293b;
-      --bg-glass: rgba(22, 31, 51, 0.88);
+      --bg-glass: rgba(15, 23, 42, 0.90);
       --bg-svg: #0d1322;
       --svg-mask: #131c31;
       --svg-submask: #0f172a;
@@ -95,15 +80,15 @@
       --text-primary: #f8fafc;
       --text-secondary: #cbd5e1;
       --text-muted: #94a3b8;
-      --border-color: #263554;
+      --border-color: rgba(148, 163, 184, 0.22);
       --border-Strong: #334155;
-      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+      --shadow-card: 0 14px 32px -8px rgba(0, 0, 0, 0.55);
 
       /* Google Cloud Signature Brand Palette (Dark Mode Tuned for High Contrast) */
-      --gc-blue: #8ab4f8;
-      --gc-blue-strong: #4285f4;
-      --gc-blue-fill: rgba(66, 133, 244, 0.18);
-      --gc-blue-soft: rgba(66, 133, 244, 0.08);
+      --gc-blue: #60a5fa;
+      --gc-blue-strong: #2563eb;
+      --gc-blue-fill: rgba(59, 130, 246, 0.18);
+      --gc-blue-soft: rgba(59, 130, 246, 0.08);
 
       --gc-green: #81c995;
       --gc-green-strong: #34a853;
@@ -164,80 +149,130 @@
     }
 
     /* ==========================================================================
-       TOP STICKY NAVIGATION & SUITE BAR
+       SHARED TOP SUITE NAVIGATION BAR (IDENTICAL ACROSS ALL 3 PAGES)
        ========================================================================== */
-    .topbar {
+    .sticky-suite-header {
       position: sticky;
       top: 0;
       z-index: 100;
       background: var(--bg-glass);
       backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border-color);
-      padding: 0.65rem 1.25rem;
+      padding: 8px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
 
-    .topbar-inner {
-      max-width: 1360px;
-      margin: 0 auto;
+    .top-suite-nav {
+      width: min(97vw, 1360px);
+      height: 34px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 0 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
-      flex-wrap: wrap;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+      flex-shrink: 0;
     }
 
-    .brand {
+    .suite-nav-links {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 6px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
     }
 
-    .gc-dots {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-
-    .gc-dots span {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .brand-title {
-      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-      font-weight: 800;
-      font-size: 0.98rem;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-    }
-
-    .brand-badge {
+    .suite-nav-brand {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
+      font-size: 11px;
       font-weight: 700;
-      padding: 0.18rem 0.55rem;
-      border-radius: 999px;
-      background: var(--gc-blue-fill);
       color: var(--gc-blue);
-      border: 1px solid var(--gc-blue);
+      padding-right: 8px;
+      border-right: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .suite-nav-link {
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .suite-nav-link:hover {
+      color: var(--text-primary);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .suite-nav-link.active {
+      color: #FFFFFF;
+      background: #2563EB;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+    }
+
+    .theme-toggle-btn {
+      background: rgba(37, 99, 235, 0.10);
+      color: var(--text-primary);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      border-radius: 999px;
+      padding: 4px 11px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    /* Secondary In-Page Jump Bar */
+    .sub-section-nav {
+      width: min(97vw, 1360px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 6px;
+    }
+
+    .sub-nav-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 4px;
       flex-wrap: wrap;
     }
 
     .nav-link {
       color: var(--text-secondary);
       text-decoration: none;
-      font-size: 0.78rem;
+      font-size: 11.5px;
       font-weight: 600;
-      padding: 0.36rem 0.65rem;
-      border-radius: 0.45rem;
+      padding: 3px 9px;
+      border-radius: 999px;
       border: 1px solid transparent;
       transition: all 0.15s ease;
       white-space: nowrap;
@@ -247,41 +282,6 @@
       color: var(--gc-blue);
       background: var(--gc-blue-soft);
       border-color: var(--border-color);
-    }
-
-    .nav-link-bento {
-      background: var(--gc-blue-fill);
-      color: var(--gc-blue);
-      border: 1px solid rgba(37, 99, 235, 0.32);
-      font-weight: 700;
-    }
-
-    .nav-link-bento:hover {
-      background: var(--gc-blue);
-      color: #ffffff;
-      border-color: var(--gc-blue);
-    }
-
-    .theme-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      cursor: pointer;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-color);
-      padding: 0.42rem 0.85rem;
-      border-radius: 999px;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .theme-btn:hover {
-      border-color: var(--gc-blue);
-      box-shadow: 0 0 0 2px var(--gc-blue-fill);
     }
 
     /* ==========================================================================
@@ -961,8 +961,11 @@
     // Immediate theme initialization before first paint (Defaults to Studio Aluminum 'light')
     (function () {
       try {
+        var paramTheme = new URLSearchParams(window.location.search).get('theme');
         var saved = localStorage.getItem('dgem-theme');
-        var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
+        var theme = (paramTheme === 'dark' || paramTheme === 'light')
+          ? paramTheme
+          : ((saved === 'dark' || saved === 'light') ? saved : 'light');
         document.documentElement.setAttribute('data-theme', theme);
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'light');
@@ -973,42 +976,38 @@
 <body>
 
   <!-- ========================================================================
-       STICKY TOP BAR WITH SUITE LINKS & SYNCHRONIZED LIGHT / DARK SWITCHER
+       STICKY TOP SUITE NAVIGATION BAR (IDENTICAL TO PAGES 1 & 2) + SECTION JUMP BAR
        ======================================================================== -->
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <div class="gc-dots" aria-hidden="true">
-          <span style="background:#4285F4"></span>
-          <span style="background:#EA4335"></span>
-          <span style="background:#FBBC04"></span>
-          <span style="background:#34A853"></span>
-        </div>
-        <span class="brand-title">Google Cloud GKE &amp; Vertex AI Architecture Studio</span>
-        <span class="brand-badge">Studio Aluminum Suite</span>
+  <div class="sticky-suite-header">
+    <header class="top-suite-nav" aria-label="Decision Gemma Visual Suite Navigation">
+      <div class="suite-nav-links">
+        <span class="suite-nav-brand">DGEM · GKE G4 SUITE</span>
+        <a class="suite-nav-link" href="dgem_bento_motion_explainer.html">1. System-1 Diffusion KPIs</a>
+        <a class="suite-nav-link" href="dgem_g4_scaling_bento_explainer.html">2. G4 Sizing, MIG/MPS &amp; Pattern 4</a>
+        <a class="suite-nav-link active" href="dgem_system1_architecture_explainer.html">3. Full Architecture &amp; Deployment Studio</a>
       </div>
+      <button class="theme-toggle-btn" id="themeToggleBtn" type="button" onclick="toggleTheme()" aria-label="Toggle Light and Dark Theme">
+        <span id="theme-icon">☀️</span>
+        <span id="theme-label">Light Mode</span>
+      </button>
+    </header>
 
-      <nav class="nav-links" aria-label="Architecture &amp; Bento Suite Navigation">
-        <a class="nav-link" href="#overview">1. Executive &amp; Bento 1</a>
+    <nav class="sub-section-nav" aria-label="In-Page Section Jump Navigation">
+      <span class="sub-nav-label">Page 3 Sections:</span>
+      <div class="nav-links">
+        <a class="nav-link" href="#overview">1. Executive Overview</a>
         <a class="nav-link" href="#gke-architecture">2. GKE G4 Runtime SVG</a>
         <a class="nav-link" href="#g4-sizing-sharing">3. G4 Sizing, MIG/MPS &amp; Pattern 4</a>
         <a class="nav-link" href="#diffusion-mechanics">4. System-1 Diffusion SVG</a>
         <a class="nav-link" href="#retail-simulator">5. Live Simulator</a>
-        <a class="nav-link nav-link-bento" href="dgem_bento_motion_explainer.html" target="_blank" rel="noopener">🎬 Bento 1 (System-1) ↗</a>
-        <a class="nav-link nav-link-bento" href="dgem_g4_scaling_bento_explainer.html" target="_blank" rel="noopener">🎬 Bento 2 (G4 &amp; Pattern 4) ↗</a>
-      </nav>
-
-      <button id="theme-toggle" class="theme-btn" type="button" onclick="toggleTheme()" aria-label="Toggle Light and Dark Theme">
-        <span id="theme-icon">🌙</span>
-        <span id="theme-label">Switch to Dark Mode</span>
-      </button>
-    </div>
-  </header>
+      </div>
+    </nav>
+  </div>
 
   <main class="container">
 
     <!-- ======================================================================
-         SECTION 1: EXECUTIVE OVERVIEW, SCORECARD & EMBEDDED BENTO BOARD #1
+         SECTION 1: EXECUTIVE OVERVIEW, SCORECARD & EMBEDDED TELEMETRY BOARD #1
          ====================================================================== -->
     <section id="overview" class="section">
       <div class="hero-card">
@@ -1052,23 +1051,20 @@
         </div>
       </div>
 
-      <!-- EMBEDDED 16:9 BENTO MOTION BOARD #1 -->
+      <!-- EMBEDDED 16:9 TELEMETRY SUMMARY BOARD #1 -->
       <div id="bento-board-1" class="bento-embed-shell">
         <div class="bento-embed-header">
           <div class="bento-embed-title-group">
-            <span class="bento-embed-badge">BENTO MOTION BOARD #1</span>
-            <span class="bento-embed-title">Interactive Motion Summary 1 — System-1 Diffusion vs. Autoregressive Baseline</span>
+            <span class="bento-embed-badge">EXECUTIVE TELEMETRY BOARD #1</span>
+            <span class="bento-embed-title">System-1 Diffusion KPIs vs. Autoregressive Baseline</span>
           </div>
-          <a class="bento-fullscreen-btn" href="dgem_bento_motion_explainer.html" target="_blank" rel="noopener">
-            Open Fullscreen 16:9 Board ↗
-          </a>
         </div>
         <div class="bento-aspect-frame">
           <iframe
             id="iframe-bento-1"
             class="bento-iframe"
-            src="dgem_bento_motion_explainer.html"
-            title="Interactive Motion Summary 1 — System-1 Diffusion vs. Autoregressive Baseline"
+            src="dgem_bento_motion_explainer.html?embed=1"
+            title="System-1 Diffusion KPIs vs. Autoregressive Baseline"
             loading="eager"
           ></iframe>
         </div>
@@ -1401,23 +1397,20 @@
         </p>
       </div>
 
-      <!-- EMBEDDED 16:9 BENTO MOTION BOARD #2 -->
+      <!-- EMBEDDED 16:9 TELEMETRY SUMMARY BOARD #2 -->
       <div id="bento-board-2" class="bento-embed-shell">
         <div class="bento-embed-header">
           <div class="bento-embed-title-group">
-            <span class="bento-embed-badge">BENTO MOTION BOARD #2</span>
-            <span class="bento-embed-title">Interactive Motion Summary 2 — G4 Machine Sizing, MIG/MPS Sharing &amp; Pattern 4 Hybrid Scaling</span>
+            <span class="bento-embed-badge">G4 CAPACITY &amp; SCALING BOARD #2</span>
+            <span class="bento-embed-title">G4 Machine Sizing, MIG/MPS Sharing &amp; Pattern 4 Hybrid Scaling</span>
           </div>
-          <a class="bento-fullscreen-btn" href="dgem_g4_scaling_bento_explainer.html" target="_blank" rel="noopener">
-            Open Fullscreen 16:9 Board ↗
-          </a>
         </div>
         <div class="bento-aspect-frame">
           <iframe
             id="iframe-bento-2"
             class="bento-iframe"
-            src="dgem_g4_scaling_bento_explainer.html"
-            title="Interactive Motion Summary 2 — G4 Machine Sizing, MIG/MPS Sharing & Pattern 4 Hybrid Scaling"
+            src="dgem_g4_scaling_bento_explainer.html?embed=1"
+            title="G4 Machine Sizing, MIG/MPS Sharing & Pattern 4 Hybrid Scaling"
             loading="lazy"
           ></iframe>
         </div>
@@ -2030,14 +2023,14 @@
 
       <!-- Reference Links & Documentation Hub -->
       <div class="ref-grid" style="margin-top:2rem">
-        <a class="ref-card" href="dgem_bento_motion_explainer.html" target="_blank" rel="noopener">
-          <div class="ref-card-title">🎬 Bento Motion Board #1 — System-1 Diffusion Performance ↗</div>
-          <div class="ref-card-desc">Standalone 16:9 Studio Aluminum Bento Motion visual comparing Decision Gemma single-pass denoising (<code>57 ms</code>) against autoregressive decoding.</div>
+        <a class="ref-card" href="dgem_bento_motion_explainer.html">
+          <div class="ref-card-title">📊 1. System-1 Diffusion KPIs Board →</div>
+          <div class="ref-card-desc">Executive telemetry summary comparing Decision Gemma single-pass denoising (<code>57 ms</code>) against autoregressive decoding.</div>
         </a>
 
-        <a class="ref-card" href="dgem_g4_scaling_bento_explainer.html" target="_blank" rel="noopener">
-          <div class="ref-card-title">🎬 Bento Motion Board #2 — G4 Sizing, MIG/MPS &amp; Pattern 4 ↗</div>
-          <div class="ref-card-desc">Standalone 16:9 Studio Aluminum Bento Motion visual for G4 fractional vGPU shapes, <code>2–3× MPS</code> vs. <code>MIG</code>, and Pattern 4 hybrid scaling.</div>
+        <a class="ref-card" href="dgem_g4_scaling_bento_explainer.html">
+          <div class="ref-card-title">📊 2. G4 Sizing, MIG/MPS &amp; Pattern 4 Board →</div>
+          <div class="ref-card-desc">Capacity and scaling summary for G4 fractional vGPU shapes, <code>2–3× MPS</code> vs. <code>MIG</code>, and Pattern 4 hybrid scaling.</div>
         </a>
 
         <a class="ref-card" href="https://github.com/GoogleCloudPlatform/dgem" target="_blank" rel="noopener noreferrer">
@@ -2269,16 +2262,16 @@
       const icon = document.getElementById("theme-icon");
       const label = document.getElementById("theme-label");
       if (icon && label) {
-        if (normalized === "light") {
+        if (normalized === "dark") {
           icon.textContent = "🌙";
-          label.textContent = "Switch to Dark Mode";
+          label.textContent = "Dark Mode";
         } else {
           icon.textContent = "☀️";
-          label.textContent = "Switch to Light Mode";
+          label.textContent = "Light Mode";
         }
       }
 
-      // Synchronize embedded Bento iframes if same-origin loaded
+      // Synchronize embedded iframes if same-origin loaded
       const iframes = document.querySelectorAll(".bento-iframe");
       iframes.forEach((frame) => {
         try {
@@ -2303,6 +2296,14 @@
       if (event.key === "dgem-theme" && event.newValue) {
         applyTheme(event.newValue, false);
       }
+    });
+
+    // Ensure embedded iframes inherit current theme when they finish loading
+    document.querySelectorAll(".bento-iframe").forEach((frame) => {
+      frame.addEventListener("load", () => {
+        const current = document.documentElement.getAttribute("data-theme") || "light";
+        applyTheme(current, false);
+      });
     });
 
     function selectScenario(scenarioKey) {
@@ -2400,8 +2401,13 @@
     (function init() {
       let initialTheme = "light";
       try {
+        const paramTheme = new URLSearchParams(window.location.search).get("theme");
         const saved = localStorage.getItem("dgem-theme");
-        if (saved === "dark" || saved === "light") initialTheme = saved;
+        if (paramTheme === "dark" || paramTheme === "light") {
+          initialTheme = paramTheme;
+        } else if (saved === "dark" || saved === "light") {
+          initialTheme = saved;
+        }
       } catch (e) {}
       applyTheme(initialTheme, false);
       updateSimulator();

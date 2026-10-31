@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decision Gemma (DGEM) on Google Cloud — System-1 Diffusion KPIs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* 70 / 20 / 10 Google Cloud Studio Aluminum Palette (Light Default) */
+      --bg-page: #CBD3DF;
+      --bg-canvas: #DCE2EA;
+      --card-grad-start: #F8FAFC;
+      --card-grad-mid: #EEF2F6;
+      --card-grad-end: #E3E8F0;
+      --card-border-outer: rgba(148, 163, 184, 0.25);
+      --card-shadow:
+        0 10px 28px -8px rgba(15, 23, 42, 0.07),
+        0 2px 6px -1px rgba(15, 23, 42, 0.04),
+        inset 0 1.5px 0 0 rgba(255, 255, 255, 0.92);
+      --subtray-bg: rgba(255, 255, 255, 0.56);
+      --subtray-border: rgba(255, 255, 255, 0.85);
+      --checklist-row-bg: rgba(255, 255, 255, 0.82);
+      --checklist-row-border: rgba(255, 255, 255, 0.95);
+      --pill-surface: rgba(255, 255, 255, 0.88);
+      --win-bg: #FFFFFF;
+      --win-titlebar: #F1F5F9;
+      --win-border: #E2E8F0;
+      --tile-bg: #F8FAFC;
+      --tile-border: #BFDBFE;
+
+      /* 20% Ink & Neutral Slate Baselines */
+      --text-ink: #1B2028;
+      --text-secondary: #5A6577;
+      --text-muted: #7B8698;
+      --neutral-slot: #CFD7E3;
+
+      /* 10% Electric Cobalt & Specular Cyan Accents */
+      --hero-blue: #2563EB;
+      --hero-blue-dark: #1D4ED8;
+      --hero-text-accent: #2563EB;
+      --hero-cyan-glint: #60A5FA;
+      --hero-cyan-bright: #93C5FD;
+
+      /* Typography */
+      --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html[data-theme="dark"] {
+      --bg-page: #060911;
+      --bg-canvas: #0B0F19;
+      --card-grad-start: #1E293B;
+      --card-grad-mid: #161F33;
+      --card-grad-end: #0F172A;
+      --card-border-outer: rgba(148, 163, 184, 0.18);
+      --card-shadow:
+        0 14px 32px -8px rgba(0, 0, 0, 0.45),
+        0 2px 6px -1px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+      --subtray-bg: rgba(15, 23, 42, 0.56);
+      --subtray-border: rgba(148, 163, 184, 0.16);
+      --checklist-row-bg: rgba(15, 23, 42, 0.68);
+      --checklist-row-border: rgba(148, 163, 184, 0.18);
+      --pill-surface: rgba(30, 41, 59, 0.90);
+      --win-bg: #0F172A;
+      --win-titlebar: #1E293B;
+      --win-border: #334155;
+      --tile-bg: #1E293B;
+      --tile-border: rgba(59, 130, 246, 0.35);
+
+      --text-ink: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
+      --neutral-slot: #334155;
+
+      --hero-blue: #3B82F6;
+      --hero-blue-dark: #60A5FA;
+      --hero-text-accent: #60A5FA;
+      --hero-cyan-glint: #60A5FA;
+      --hero-cyan-bright: #93C5FD;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-page);
+      font-family: var(--font-sans);
+      color: var(--text-ink);
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      overflow: hidden;
+      user-select: none;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    /* Shared Top Suite Navigation Bar (Identical Across All 3 Pages) */
+    .top-suite-nav {
+      width: min(97vw, calc(91vh * (16 / 9)));
+      height: 36px;
+      background: var(--pill-surface);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border-outer);
+      border-radius: 999px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+      z-index: 90;
+      flex-shrink: 0;
+    }
+
+    .suite-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .suite-nav-brand {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--hero-text-accent);
+      padding-right: 8px;
+      border-right: 1px solid var(--card-border-outer);
+      white-space: nowrap;
+    }
+
+    .suite-nav-link {
+      text-decoration: none;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding: 4px 11px;
+      border-radius: 999px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .suite-nav-link:hover {
+      color: var(--text-ink);
+      background: rgba(37, 99, 235, 0.10);
+    }
+
+    .suite-nav-link.active {
+      color: #FFFFFF;
+      background: var(--hero-blue);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+    }
+
+    .theme-toggle-btn {
+      background: rgba(37, 99, 235, 0.10);
+      color: var(--text-ink);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      border-radius: 999px;
+      padding: 4px 11px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    /* 16:9 Locked Aspect-Ratio Stage */
+    .stage-wrapper {
+      position: relative;
+      width: min(97vw, calc(91vh * (16 / 9)));
+      aspect-ratio: 16 / 9;
+      background: var(--bg-canvas);
+      border-radius: 28px;
+      padding: 1.85%;
+      box-shadow:
+        0 28px 65px -15px rgba(15, 23, 42, 0.20),
+        0 0 0 1px rgba(255, 255, 255, 0.45);
+      display: flex;
+      flex-direction: column;
+    }
+
+    html.embedded-mode .top-suite-nav {
+      display: none !important;
+    }
+
+    html.embedded-mode,
+    html.embedded-mode body {
+      background: transparent;
+    }
+
+    html.embedded-mode .stage-wrapper {
+      width: 100vw;
+      height: 100vh;
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 22px;
+      box-shadow: none;
+    }
+
+    /* 12-Column × 2-Row Asymmetric Bento Grid (7 Cards) */
+    .bento-grid {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      grid-template-rows: 51.5% 46.2%;
+      gap: 1.15%;
+    }
+
+    .bento-card {
+      position: relative;
+      background: linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 54%, var(--card-grad-end) 100%);
+      border-radius: 22px;
+      border: 1px solid var(--card-border-outer);
+      box-shadow: var(--card-shadow);
+      padding: clamp(16px, 1.5vw, 25px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Grid Spans Matching @pratikg Reference Proportions */
+    .card-1 { grid-column: span 3; grid-row: 1; }
+    .card-2 { grid-column: span 3; grid-row: 1; }
+    .card-3 { grid-column: span 6; grid-row: 1; }
+    .card-4 { grid-column: span 3; grid-row: 2; }
+    .card-5 { grid-column: span 3; grid-row: 2; }
+    .card-6 { grid-column: span 3; grid-row: 2; }
+    .card-7 { grid-column: span 3; grid-row: 2; }
+
+    /* Shared Typography Tokens */
+    .kpi-giant {
+      font-family: var(--font-display);
+      font-size: clamp(32px, 3.3vw, 54px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.98;
+      color: var(--text-ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-subtitle {
+      font-size: clamp(11px, 0.90vw, 14.5px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.30;
+      letter-spacing: -0.01em;
+      margin-top: 5px;
+    }
+
+    .card-title-mid {
+      font-family: var(--font-display);
+      font-size: clamp(16px, 1.45vw, 23.5px);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--text-ink);
+      line-height: 1.15;
+    }
+
+    /* ============================================================================
+       CARD 1: GOOGLE CLOUD + DECISION GEMMA (DGEM) STUDIO PEDESTAL
+       ============================================================================ */
+    .card-1 {
+      align-items: center;
+      justify-content: space-between;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 36%, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0) 68%),
+        linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 55%, var(--card-grad-end) 100%);
+    }
+
+    .gcp-brand-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .gcp-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--pill-surface);
+      border: 1px solid var(--card-border-outer);
+      box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+      font-size: clamp(9.5px, 0.72vw, 11.5px);
+      font-weight: 700;
+      color: var(--text-ink);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .dgem-tag-pill {
+      font-family: var(--font-mono);
+      font-size: clamp(9px, 0.66vw, 11px);
+      font-weight: 700;
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.28);
+      padding: 3px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pedestal-stage {
+      width: 100%;
+      height: 52%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .pedestal-stage svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    @keyframes coreFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @keyframes horizonPulse {
+      0%, 100% { opacity: 0.80; }
+      50% { opacity: 1; }
+    }
+
+    .floating-cloud-core {
+      animation: coreFloat 3.6s ease-in-out infinite;
+    }
+
+    .horizon-glow-line {
+      animation: horizonPulse 2.8s ease-in-out infinite;
+    }
+
+    .hero-identity-copy {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .hero-model-name {
+      font-family: var(--font-display);
+      font-size: clamp(21px, 2.05vw, 33px);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      color: var(--text-ink);
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    .hero-model-arch {
+      font-size: clamp(10px, 0.82vw, 13px);
+      font-weight: 600;
+      color: var(--hero-text-accent);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .hero-model-hw {
+      font-size: clamp(9.5px, 0.73vw, 11.8px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .hero-spec-pills {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 4px;
+      flex-wrap: nowrap;
+    }
+
+    .spec-micro-chip {
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.62vw, 10px);
+      font-weight: 600;
+      color: var(--text-ink);
+      background: var(--pill-surface);
+      border: 1px solid var(--card-border-outer);
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* ============================================================================
+       CARD 2 & CARD 4: ISOMETRIC 3D PRISM & WIREFRAME CAPACITY TANK
+       ============================================================================ */
+    .iso-chart-wrap {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      position: relative;
+      margin-top: 2px;
+    }
+
+    .iso-chart-wrap svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* ============================================================================
+       CARD 3: WIDE REAL-TIME CATALOG DECISION SIMULATION (COLS 7-12)
+       ============================================================================ */
+    .card-3 {
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 3.2%;
+      background:
+        radial-gradient(circle at 74% 52%, rgba(37, 99, 235, 0.10) 0%, rgba(37, 99, 235, 0) 68%),
+        linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 55%, var(--card-grad-end) 100%);
+    }
+
+    .c3-left-column {
+      width: 41%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+
+    .c3-arch-summary-pill {
+      margin: auto 0;
+      background: var(--subtray-bg);
+      border: 1px solid var(--card-border-outer);
+      border-radius: 12px;
+      padding: 9px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .c3-arch-pill-title {
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.65vw, 10.5px);
+      font-weight: 700;
+      color: var(--hero-text-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .c3-arch-pill-desc {
+      font-size: clamp(9.5px, 0.74vw, 12px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.3;
+    }
+
+    .c3-counter-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .c3-live-turn-line {
+      font-size: clamp(12px, 1.0vw, 16px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .c3-live-turn-num {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(20px, 1.6vw, 26px);
+      color: var(--text-ink);
+      font-variant-numeric: tabular-nums;
+      display: inline-block;
+      transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease;
+    }
+
+    .c3-live-turn-num.bump {
+      transform: translateY(-3px) scale(1.06);
+      color: var(--hero-blue);
+    }
+
+    .c3-progress-rail {
+      width: 100%;
+      height: 7px;
+      background: var(--neutral-slot);
+      border-radius: 999px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .c3-progress-bar {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, var(--hero-blue-dark) 0%, var(--hero-blue) 65%, var(--hero-cyan-glint) 100%);
+      border-radius: 999px;
+    }
+
+    .c3-progress-meta {
+      font-family: var(--font-mono);
+      font-size: clamp(8.8px, 0.68vw, 11px);
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      white-space: nowrap;
+    }
+
+    /* Right Side Floating Miniature Telemetry Window */
+    .c3-right-window-wrap {
+      width: 59%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sim-window {
+      width: 100%;
+      background: var(--win-bg);
+      border-radius: 16px;
+      border: 1px solid var(--card-border-outer);
+      box-shadow:
+        0 18px 36px -10px rgba(15, 23, 42, 0.14),
+        0 2px 6px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sim-win-titlebar {
+      height: 30px;
+      background: var(--win-titlebar);
+      border-bottom: 1px solid var(--win-border);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .win-dots {
+      display: flex;
+      gap: 5.5px;
+    }
+
+    .win-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #CBD5E1;
+    }
+
+    .win-dot.d1 { background: #FDA4AF; }
+    .win-dot.d2 { background: #FCD34D; }
+    .win-dot.d3 { background: #6EE7B7; }
+
+    .win-title-label {
+      font-family: var(--font-mono);
+      font-size: clamp(8.8px, 0.66vw, 11px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .win-pass-badge {
+      font-family: var(--font-mono);
+      font-size: clamp(8px, 0.60vw, 9.8px);
+      font-weight: 700;
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.12);
+      padding: 2px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .win-scanline {
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      height: 2.5px;
+      width: 38%;
+      background: linear-gradient(90deg, transparent, var(--hero-blue), var(--hero-cyan-glint), transparent);
+      transform: translateX(0%);
+    }
+
+    .sim-win-body {
+      padding: clamp(11px, 1.05vw, 16px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--win-bg);
+    }
+
+    .sku-context-bar {
+      background: var(--win-titlebar);
+      border: 1px solid var(--win-border);
+      border-radius: 9px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .sku-title-text {
+      font-family: var(--font-mono);
+      font-size: clamp(8.8px, 0.68vw, 11px);
+      font-weight: 600;
+      color: var(--text-ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sku-mask-tag {
+      font-family: var(--font-mono);
+      font-size: clamp(8px, 0.58vw, 9.5px);
+      font-weight: 700;
+      color: #0369A1;
+      background: #E0F2FE;
+      padding: 2.5px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* Bidirectional Diffusion Canvas Strip inside Window */
+    .canvas-mask-strip {
+      background: rgba(37, 99, 235, 0.08);
+      border: 1px dashed #93C5FD;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: clamp(8px, 0.62vw, 10px);
+      color: var(--hero-text-accent);
+      white-space: nowrap;
+    }
+
+    .canvas-mask-tokens {
+      font-weight: 700;
+      color: var(--hero-text-accent);
+    }
+
+    .slot-grid-2x2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .slot-tile {
+      background: var(--tile-bg);
+      border: 1px solid var(--tile-border);
+      border-radius: 9px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slot-tile-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .slot-key {
+      font-family: var(--font-mono);
+      font-size: clamp(8.2px, 0.62vw, 10.2px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .slot-val {
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.64vw, 10.5px);
+      font-weight: 700;
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.12);
+      padding: 1.5px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .slot-conf-bar {
+      width: 100%;
+      height: 4.5px;
+      background: rgba(59, 130, 246, 0.20);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .slot-conf-fill {
+      height: 100%;
+      width: 96%;
+      background: var(--hero-blue);
+      border-radius: 999px;
+    }
+
+    .sim-win-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid var(--win-border);
+    }
+
+    .entropy-gate-readout {
+      font-family: var(--font-mono);
+      font-size: clamp(8.2px, 0.62vw, 10px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .entropy-gate-readout strong {
+      color: #10B981;
+    }
+
+    .commit-action-btn {
+      position: relative;
+      background: var(--hero-blue);
+      color: #FFFFFF;
+      font-size: clamp(8.5px, 0.64vw, 10.5px);
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.30);
+      white-space: nowrap;
+    }
+
+    .commit-pulse-ring {
+      position: absolute;
+      inset: -5px;
+      border-radius: 999px;
+      border: 2px solid var(--hero-cyan-glint);
+      opacity: 0;
+      transform: scale(0.88);
+      pointer-events: none;
+    }
+
+    .commit-pulse-ring.active {
+      animation: ringPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes ringPop {
+      0% { opacity: 0.95; transform: scale(0.90); }
+      100% { opacity: 0; transform: scale(1.38); }
+    }
+
+    /* ============================================================================
+       CARD 5: 3-ROW CALIBRATED CASCADE CHECKLIST (COLS 4-6, ROW 2)
+       ============================================================================ */
+    .card-5 {
+      justify-content: space-between;
+    }
+
+    .c5-gate-pill {
+      align-self: center;
+      font-family: var(--font-mono);
+      font-size: clamp(8.8px, 0.66vw, 10.8px);
+      font-weight: 600;
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.10);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      padding: 4px 11px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .checklist-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .checklist-row {
+      background: var(--checklist-row-bg);
+      border: 1px solid var(--checklist-row-border);
+      border-radius: 12px;
+      padding: clamp(9px, 0.85vw, 13px) clamp(11px, 0.95vw, 15px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+    }
+
+    .checklist-row-label {
+      font-size: clamp(10.5px, 0.84vw, 13.5px);
+      font-weight: 600;
+      color: var(--text-ink);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .checklist-row.muted-row .checklist-row-label {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .status-badge-circle {
+      width: clamp(20px, 1.45vw, 24px);
+      height: clamp(20px, 1.45vw, 24px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .status-badge-circle.pass {
+      background: var(--hero-blue);
+      color: #FFFFFF;
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.32);
+    }
+
+    .status-badge-circle.block {
+      background: var(--neutral-slot);
+      color: var(--text-secondary);
+    }
+
+    /* ============================================================================
+       CARD 6: STEP EFFICIENCY WAFFLE GRID RACE (COLS 7-9, ROW 2)
+       ============================================================================ */
+    .card-6 {
+      justify-content: space-between;
+    }
+
+    .waffle-comparison-stack {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 1.15vw, 18px);
+    }
+
+    .waffle-model-block {
+      background: var(--subtray-bg);
+      border: 1px solid var(--subtray-border);
+      border-radius: 13px;
+      padding: clamp(8px, 0.8vw, 12px);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .waffle-header-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: clamp(10.5px, 0.84vw, 13.5px);
+      white-space: nowrap;
+    }
+
+    .waffle-model-title {
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .waffle-model-title.hero {
+      font-weight: 700;
+      color: var(--text-ink);
+    }
+
+    .waffle-step-count {
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: var(--text-ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .waffle-step-count.hero {
+      color: var(--hero-text-accent);
+    }
+
+    .waffle-grid-13x3 {
+      display: grid;
+      grid-template-columns: repeat(13, 1fr);
+      gap: 4px;
+    }
+
+    .waffle-cell {
+      aspect-ratio: 1.15 / 1;
+      border-radius: 3.5px;
+      background: var(--neutral-slot);
+      transition: background-color 0.14s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .waffle-cell.ghost {
+      background: rgba(148, 163, 184, 0.25);
+    }
+
+    .waffle-cell.active-hero {
+      background: var(--hero-blue);
+      box-shadow: 0 0 6px rgba(37, 99, 235, 0.38);
+    }
+
+    .waffle-cell.active-base {
+      background: #3B82F6;
+    }
+
+    /* ============================================================================
+       CARD 7: MODELOPT NVFP4 QUANTIZATION MATRIX (COLS 10-12, ROW 2)
+       ============================================================================ */
+    .card-7 {
+      justify-content: space-between;
+    }
+
+    .quant-centered-header {
+      text-align: center;
+    }
+
+    .quant-title-big {
+      font-family: var(--font-display);
+      font-size: clamp(22px, 2.0vw, 32px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-ink);
+      line-height: 1.06;
+    }
+
+    .quant-matrix-rows {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(11px, 1.05vw, 16px);
+    }
+
+    .quant-row {
+      background: var(--subtray-bg);
+      border: 1px solid var(--subtray-border);
+      border-radius: 12px;
+      padding: clamp(8px, 0.78vw, 12px) clamp(10px, 0.85vw, 13px);
+      display: grid;
+      grid-template-columns: 44px 1fr 56px;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .quant-bit-label {
+      font-size: clamp(10.5px, 0.84vw, 13.5px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .quant-bit-label.hero {
+      font-weight: 800;
+      color: var(--text-ink);
+    }
+
+    .quant-gib-label {
+      font-family: var(--font-mono);
+      font-size: clamp(9.5px, 0.72vw, 11.5px);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .quant-gib-label.hero {
+      color: var(--hero-text-accent);
+      font-weight: 700;
+    }
+
+    .quant-pill-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3.5px;
+      width: 100%;
+    }
+
+    .quant-pill-group.compress-4bit {
+      width: 26%;
+      transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .quant-pill-track {
+      display: grid;
+      gap: 2.5px;
+      height: clamp(9px, 0.75vw, 12px);
+    }
+
+    .quant-pill {
+      border-radius: 3px;
+      background: #94A3B8;
+    }
+
+    .quant-pill.hero-pill {
+      background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.28);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Unified Suite Navigation & Theme Bar -->
+  <header class="top-suite-nav" aria-label="Decision Gemma Architecture Suite Navigation">
+    <div class="suite-nav-links">
+      <span class="suite-nav-brand">DGEM · GKE G4 SUITE</span>
+      <a class="suite-nav-link active" href="dgem_bento_motion_explainer.html">1. System-1 Diffusion KPIs</a>
+      <a class="suite-nav-link" href="dgem_g4_scaling_bento_explainer.html">2. G4 Sizing, MIG/MPS &amp; Pattern 4</a>
+      <a class="suite-nav-link" href="dgem_system1_architecture_explainer.html">3. Full Architecture &amp; Deployment Studio</a>
+    </div>
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button">
+      <span id="themeIcon">☀️</span>
+      <span id="themeLabel">Light Mode</span>
+    </button>
+  </header>
+
+  <main class="stage-wrapper" id="bentoStage">
+    <div class="bento-grid">
+
+      <!-- ====================================================================
+           CARD 1 (TOP-LEFT): GOOGLE CLOUD + DECISION GEMMA (DGEM) HERO PEDESTAL
+           ==================================================================== -->
+      <section class="bento-card card-1" aria-label="Google Cloud Decision Gemma Identity">
+        <div class="gcp-brand-header">
+          <span class="gcp-pill">
+            <!-- Official Google Cloud 4-Color Vector Emblem -->
+            <svg width="15" height="12" viewBox="0 0 24 20" fill="none" aria-hidden="true">
+              <path d="M15.1 4.2L17.9 1.4C16.2 0.5 14.2 0 12 0C7.4 0 3.5 2.6 1.6 6.5L5.7 9.7C6.7 6.8 9.1 4.8 12 4.8C13.1 4.8 14.2 4.6 15.1 4.2Z" fill="#EA4335"/>
+              <path d="M21.8 9.2C21.1 6.7 19.6 4.5 17.6 3.1L14.7 6.0C16.4 7.1 17.6 9.0 17.6 11.2V12.0C19.4 12.0 20.8 13.4 20.8 15.2C20.8 17.0 19.4 18.4 17.6 18.4H6.4C4.2 18.4 2.4 16.6 2.4 14.4C2.4 12.5 3.7 10.9 5.5 10.5L1.5 7.4C0.5 9.4 0 11.8 0 14.4C0 17.5 2.5 20 5.6 20H17.6C21.1 20 24 17.1 24 13.6C24 11.6 23.1 9.9 21.8 9.2Z" fill="#4285F4"/>
+              <path d="M5.6 18.4H12V14.4H6.4C5.7 14.4 5.1 14.1 4.6 13.7L1.5 16.8C2.6 17.8 4.0 18.4 5.6 18.4Z" fill="#34A853"/>
+              <path d="M6.4 10.4C4.2 10.4 2.4 12.2 2.4 14.4C2.4 15.6 2.9 16.7 3.8 17.4L6.7 14.5C6.2 14.2 6.0 13.7 6.0 13.1C6.0 12.2 6.7 11.5 7.6 11.5L6.4 10.4Z" fill="#FBBC05"/>
+            </svg>
+            Google Cloud
+          </span>
+          <span class="dgem-tag-pill">DGEM · System-1</span>
+        </div>
+
+        <!-- Studio Pedestal + 3D Google Cloud & Gemma Diffusion Tensor Core -->
+        <div class="pedestal-stage">
+          <svg viewBox="0 0 280 150" fill="none" role="img" aria-label="Google Cloud and Decision Gemma 3D Diffusion Core on Studio Pedestal">
+            <defs>
+              <linearGradient id="pedestalTop" x1="40" y1="110" x2="240" y2="126" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#334155"/>
+                <stop offset="50%" stop-color="#1E293B"/>
+                <stop offset="100%" stop-color="#0F172A"/>
+              </linearGradient>
+              <linearGradient id="pedestalFront" x1="25" y1="123" x2="255" y2="136" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1E293B"/>
+                <stop offset="50%" stop-color="#0F172A"/>
+                <stop offset="100%" stop-color="#1E293B"/>
+              </linearGradient>
+              <linearGradient id="cyanHorizon" x1="35" y1="124" x2="245" y2="124" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#38BDF8" stop-opacity="0"/>
+                <stop offset="22%" stop-color="#38BDF8" stop-opacity="0.88"/>
+                <stop offset="50%" stop-color="#BAE6FD" stop-opacity="1"/>
+                <stop offset="78%" stop-color="#2563EB" stop-opacity="0.88"/>
+                <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="coreTop" x1="100" y1="18" x2="180" y2="52" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#93C5FD"/>
+                <stop offset="100%" stop-color="#3B82F6"/>
+              </linearGradient>
+              <linearGradient id="coreLeft" x1="95" y1="38" x2="140" y2="104" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#3B82F6"/>
+                <stop offset="100%" stop-color="#1D4ED8"/>
+              </linearGradient>
+              <linearGradient id="coreRight" x1="140" y1="38" x2="185" y2="104" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1D4ED8"/>
+                <stop offset="100%" stop-color="#1E3A8A"/>
+              </linearGradient>
+              <linearGradient id="cloudGlass" x1="90" y1="20" x2="190" y2="96" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.97"/>
+                <stop offset="100%" stop-color="#E2E8F0" stop-opacity="0.92"/>
+              </linearGradient>
+              <filter id="softPedestalGlow" x="-20%" y="-20%" width="140%" height="150%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+              </filter>
+            </defs>
+
+            <ellipse cx="140" cy="135" rx="96" ry="8" fill="#2563EB" opacity="0.16" filter="url(#softPedestalGlow)"/>
+            <ellipse cx="140" cy="120" rx="68" ry="5.5" fill="#0F172A" opacity="0.22"/>
+
+            <!-- Chamfered Studio Hardware Pedestal Shelf -->
+            <polygon points="46,112 234,112 252,123 28,123" fill="url(#pedestalTop)" stroke="#64748B" stroke-width="0.8"/>
+            <rect x="28" y="123" width="224" height="9" rx="3" fill="url(#pedestalFront)"/>
+            <rect class="horizon-glow-line" x="34" y="122.5" width="212" height="2.6" rx="1.3" fill="url(#cyanHorizon)"/>
+
+            <!-- Floating 3D Google Cloud + Gemma Diffusion Tensor Sculpture -->
+            <g class="floating-cloud-core">
+              <!-- Left 3D Slot Prism -->
+              <polygon points="66,52 94,39 116,49 88,62" fill="#93C5FD" opacity="0.92"/>
+              <polygon points="66,52 88,62 88,92 66,82" fill="#3B82F6" opacity="0.92"/>
+              <polygon points="88,62 116,49 116,79 88,92" fill="#1D4ED8" opacity="0.92"/>
+
+              <!-- Right 3D Slot Prism -->
+              <polygon points="164,49 186,39 214,52 192,62" fill="#93C5FD" opacity="0.92"/>
+              <polygon points="164,49 192,62 192,92 164,79" fill="#3B82F6" opacity="0.92"/>
+              <polygon points="192,62 214,52 214,82 192,92" fill="#1D4ED8" opacity="0.92"/>
+
+              <!-- Center Hero 3D Gemma Diffusion Hexa-Prism -->
+              <polygon points="140,13 182,32 140,51 98,32" fill="url(#coreTop)" stroke="#DBEAFE" stroke-width="1"/>
+              <polygon points="98,32 140,51 140,104 98,85" fill="url(#coreLeft)" stroke="#93C5FD" stroke-width="0.8"/>
+              <polygon points="140,51 182,32 182,85 140,104" fill="url(#coreRight)" stroke="#60A5FA" stroke-width="0.8"/>
+              <polygon points="116,40 124,44 124,97 116,93" fill="#BAE6FD" opacity="0.52"/>
+
+              <!-- Sculpted 3D Google Cloud Medallion -->
+              <rect x="105" y="40" width="70" height="45" rx="13" fill="url(#cloudGlass)" stroke="#FFFFFF" stroke-width="1.5"/>
+              <g transform="translate(122, 48) scale(1.48)">
+                <path d="M15.1 4.2L17.9 1.4C16.2 0.5 14.2 0 12 0C7.4 0 3.5 2.6 1.6 6.5L5.7 9.7C6.7 6.8 9.1 4.8 12 4.8C13.1 4.8 14.2 4.6 15.1 4.2Z" fill="#EA4335"/>
+                <path d="M21.8 9.2C21.1 6.7 19.6 4.5 17.6 3.1L14.7 6.0C16.4 7.1 17.6 9.0 17.6 11.2V12.0C19.4 12.0 20.8 13.4 20.8 15.2C20.8 17.0 19.4 18.4 17.6 18.4H6.4C4.2 18.4 2.4 16.6 2.4 14.4C2.4 12.5 3.7 10.9 5.5 10.5L1.5 7.4C0.5 9.4 0 11.8 0 14.4C0 17.5 2.5 20 5.6 20H17.6C21.1 20 24 17.1 24 13.6C24 11.6 23.1 9.9 21.8 9.2Z" fill="#4285F4"/>
+                <path d="M5.6 18.4H12V14.4H6.4C5.7 14.4 5.1 14.1 4.6 13.7L1.5 16.8C2.6 17.8 4.0 18.4 5.6 18.4Z" fill="#34A853"/>
+                <path d="M6.4 10.4C4.2 10.4 2.4 12.2 2.4 14.4C2.4 15.6 2.9 16.7 3.8 17.4L6.7 14.5C6.2 14.2 6.0 13.7 6.0 13.1C6.0 12.2 6.7 11.5 7.6 11.5L6.4 10.4Z" fill="#FBBC05"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Model Title & Gemma Diffusion Details -->
+        <div class="hero-identity-copy">
+          <h1 class="hero-model-name">Decision Gemma</h1>
+          <div class="hero-model-arch">Gemma Diffusion 26B-A4B (4B Active)</div>
+          <div class="hero-model-hw">GKE G4 · RTX PRO 6000 Blackwell (96 GB)</div>
+          <div class="hero-spec-pills">
+            <span class="spec-micro-chip">128-Tok Block</span>
+            <span class="spec-micro-chip">O(1) Denoising</span>
+            <span class="spec-micro-chip">NVFP4</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 2 (TOP-CENTER): 10.5x SPEEDUP & 3D ISOMETRIC PRISMS (WIDE SEPARATION)
+           ==================================================================== -->
+      <section class="bento-card card-2" aria-label="10.5x Faster Multi-Slot Latency">
+        <div>
+          <div class="kpi-giant">10.5×</div>
+          <p class="card-subtitle">faster multi-slot SKU decision throughput (57 ms vs. 600 ms p50)</p>
+        </div>
+
+        <div class="iso-chart-wrap">
+          <svg viewBox="0 0 280 190" fill="none" role="img" aria-label="3D Isometric Speed Comparison Prisms">
+            <defs>
+              <linearGradient id="heroBarLeft" x1="42" y1="32" x2="76" y2="146" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#3B82F6"/>
+                <stop offset="100%" stop-color="#1D4ED8"/>
+              </linearGradient>
+              <linearGradient id="heroBarRight" x1="76" y1="32" x2="110" y2="146" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1D4ED8"/>
+                <stop offset="100%" stop-color="#1E3A8A"/>
+              </linearGradient>
+              <linearGradient id="cyanGlintStripe" x1="56" y1="36" x2="56" y2="144" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#E0F2FE" stop-opacity="0.88"/>
+                <stop offset="55%" stop-color="#60A5FA" stop-opacity="0.50"/>
+                <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Soft Floor Shadows (Centers at x=76 and x=204 -> 128px horizontal separation!) -->
+            <ellipse cx="76" cy="146" rx="38" ry="8" fill="#1E293B" opacity="0.12"/>
+            <ellipse cx="204" cy="138" rx="36" ry="7.5" fill="#1E293B" opacity="0.08"/>
+
+            <!-- HERO 3D ISOMETRIC PRISM (Center x=76) -->
+            <g>
+              <polygon points="76,24 110,39 76,54 42,39" fill="#60A5FA" stroke="#BFDBFE" stroke-width="0.9"/>
+              <polygon points="42,39 76,54 76,144 42,129" fill="url(#heroBarLeft)"/>
+              <polygon points="54,44 65,49 65,139 54,134" fill="url(#cyanGlintStripe)"/>
+              <polygon points="76,54 110,39 110,129 76,144" fill="url(#heroBarRight)"/>
+              <text x="76" y="16" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="13" fill="var(--hero-text-accent)">57 ms p50</text>
+            </g>
+
+            <!-- BASELINE 3D ISOMETRIC PRISM (Center x=204) -->
+            <g>
+              <polygon points="204,104 236,118 204,132 172,118" fill="#E2E8F0" stroke="#F8FAFC" stroke-width="0.9"/>
+              <polygon points="172,118 204,132 204,144 172,130" fill="#CBD5E1"/>
+              <polygon points="204,132 236,118 236,130 204,144" fill="#94A3B8"/>
+              <text x="204" y="95" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="var(--text-secondary)">600 ms p50</text>
+            </g>
+
+            <!-- Two-Line Non-Overlapping Base Labels (128px center-to-center distance) -->
+            <text x="76" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="11.5" fill="var(--text-ink)">Decision Gemma</text>
+            <text x="76" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.5" fill="var(--hero-text-accent)">1-Pass Diffusion</text>
+
+            <text x="204" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="11.5" fill="var(--text-secondary)">Autoregressive 27B</text>
+            <text x="204" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="500" font-size="9.5" fill="var(--text-muted)">Sequential LLM</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 3 (TOP-RIGHT WIDE): REAL-TIME MULTI-SLOT SIMULATION LOOP
+           ==================================================================== -->
+      <section class="bento-card card-3" aria-label="Real-Time Multi-Slot Catalog Decision Loop">
+        <div class="c3-left-column">
+          <div>
+            <h2 class="card-title-mid">Real-Time Multi-Slot Denoising</h2>
+            <p class="card-subtitle">Evaluates 4 retail catalog attributes simultaneously (boolean, choice, score) in one bidirectional G4 pass.</p>
+          </div>
+
+          <div class="c3-arch-summary-pill">
+            <span class="c3-arch-pill-title">Document-First Canvas</span>
+            <span class="c3-arch-pill-desc">Shared SKU prefix + 4 masked @ slots resolved in 1 step without autoregressive token loops.</span>
+          </div>
+
+          <div class="c3-counter-panel">
+            <div class="c3-live-turn-line">
+              <span class="c3-live-turn-num" id="liveTurnCounter">4</span>
+              <span>SKUs decided so far, in real time</span>
+            </div>
+            <div class="c3-progress-rail">
+              <div class="c3-progress-bar" id="liveProgressBar"></div>
+            </div>
+            <div class="c3-progress-meta">
+              <span>1 Forward Pass = 4 Slots</span>
+              <span id="liveCycleMs">57 ms G4 p50</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="c3-right-window-wrap">
+          <div class="sim-window">
+            <div class="sim-win-titlebar">
+              <div class="win-dots">
+                <span class="win-dot d1"></span>
+                <span class="win-dot d2"></span>
+                <span class="win-dot d3"></span>
+              </div>
+              <span class="win-title-label">dgem-engine · DiffusionGemma-26B-A4B</span>
+              <span class="win-pass-badge">O(1) BLOCK</span>
+              <div class="win-scanline" id="winScanline"></div>
+            </div>
+
+            <div class="sim-win-body">
+              <div class="sku-context-bar">
+                <span class="sku-title-text" id="skuTitleText">SKU #4092 · Lithium Power Station 1200Wh</span>
+                <span class="sku-mask-tag">128-TOK MASK</span>
+              </div>
+
+              <div class="canvas-mask-strip">
+                <span>Canvas Readout:</span>
+                <span class="canvas-mask-tokens">hazmat:@  dept:@  ship:@  spec:@</span>
+              </div>
+
+              <div class="slot-grid-2x2">
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">1. hazmat</span>
+                    <span class="slot-val" id="slotVal1">Yes (0.99)</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 99%;"></div></div>
+                </div>
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">2. dept</span>
+                    <span class="slot-val" id="slotVal2">B: Outdoor</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 96%;"></div></div>
+                </div>
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">3. ship</span>
+                    <span class="slot-val" id="slotVal3">Ground Only</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 98%;"></div></div>
+                </div>
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">4. spec</span>
+                    <span class="slot-val" id="slotVal4">4.85 / 5.0</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 95%;"></div></div>
+                </div>
+              </div>
+
+              <div class="sim-win-footer">
+                <span class="entropy-gate-readout" id="entropyReadout">
+                  Calibrated T* · <strong>H/ln(K) = 0.05 &lt; 0.16</strong>
+                </span>
+                <div class="commit-action-btn">
+                  <span>Stage 1 Fast Path</span>
+                  <div class="commit-pulse-ring" id="commitPulseRing"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 4 (BOTTOM-LEFT): 5.5x SMALLER VRAM FOOTPRINT (3D WIREFRAME TANK + CLEAN SIDE CALLOUTS)
+           ==================================================================== -->
+      <section class="bento-card card-4" aria-label="5.5x Smaller Memory Footprint">
+        <div>
+          <div class="kpi-giant">5.5×</div>
+          <p class="card-subtitle">smaller GPU weight footprint (17.53 GiB NVFP4 inside 96 GB G4)</p>
+        </div>
+
+        <div class="iso-chart-wrap">
+          <svg viewBox="0 0 280 185" fill="none" role="img" aria-label="3D Wireframe GPU Capacity Tank with Right-Aligned Callouts">
+            <defs>
+              <linearGradient id="b1TopFace" x1="37" y1="109" x2="123" y2="137" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#93C5FD"/>
+                <stop offset="100%" stop-color="#3B82F6"/>
+              </linearGradient>
+            </defs>
+
+            <!-- 1. Soft Shadow Beneath Wireframe Tank (Centered at cx=80, dx=46, dy=15) -->
+            <ellipse cx="80" cy="159" rx="50" ry="10" fill="#1E293B" opacity="0.11"/>
+
+            <!-- 2. BACK WALLS OF 96 GB GLASS WIREFRAME TANK (Behind Model Block) -->
+            <polygon points="34,33 80,18 80,126 34,141" fill="rgba(148, 163, 184, 0.10)"/>
+            <polygon points="80,18 126,33 126,141 80,126" fill="rgba(148, 163, 184, 0.14)"/>
+            <line x1="80" y1="18" x2="80" y2="126" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="3 3"/>
+            <line x1="34" y1="141" x2="80" y2="126" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="3 3"/>
+            <line x1="126" y1="141" x2="80" y2="126" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="3 3"/>
+
+            <!-- 3. SOLID COBALT SUB-BLOCK AT BOTTOM OF TANK (17.53 GiB Decision Gemma NVFP4, cx=80, dx=43, dy=14, y_c=123, h=17) -->
+            <g>
+              <polygon points="37,123 80,137 80,154 37,140" fill="#2563EB"/>
+              <polygon points="48,126.6 57,129.5 57,146.5 48,143.6" fill="#93C5FD" opacity="0.50"/>
+              <polygon points="80,137 123,123 123,140 80,154" fill="#1D4ED8"/>
+              <!-- Symmetric Isometric Top Diamond (y = 123 ± 14 -> 109..137) -->
+              <polygon points="80,109 123,123 80,137 37,123" fill="url(#b1TopFace)" stroke="#BFDBFE" stroke-width="0.85" stroke-linejoin="round"/>
+            </g>
+
+            <!-- 4. FRONT GLASS FACES & WIREFRAME EDGES OF 96 GB TANK (Over Model Block) -->
+            <polygon points="34,33 80,48 80,156 34,141" fill="rgba(255, 255, 255, 0.05)" stroke="#94A3B8" stroke-width="1.25" stroke-linejoin="round"/>
+            <polygon points="80,48 126,33 126,141 80,156" fill="rgba(148, 163, 184, 0.07)" stroke="#94A3B8" stroke-width="1.25" stroke-linejoin="round"/>
+            <polygon points="80,18 126,33 80,48 34,33" fill="rgba(226, 232, 240, 0.22)" stroke="#94A3B8" stroke-width="1.35" stroke-linejoin="round"/>
+
+            <!-- 5. RIGHT-ALIGNED LEADER LINES -->
+            <!-- Leader Line 1: Top of 96 GB Tank -->
+            <circle cx="126" cy="36" r="2.8" fill="#475569"/>
+            <line x1="126" y1="36" x2="150" y2="36" stroke="#64748B" stroke-width="1.2"/>
+            <text x="155" y="34" font-family="Inter, sans-serif" font-weight="700" font-size="11.5" fill="var(--text-ink)">96 GB G4 VRAM</text>
+            <text x="155" y="48" font-family="Inter, sans-serif" font-weight="500" font-size="10" fill="var(--text-secondary)">RTX PRO 6000 GPU</text>
+
+            <!-- Leader Line 2: Middle Free Headroom -->
+            <circle cx="126" cy="84" r="2.8" fill="#94A3B8"/>
+            <line x1="126" y1="84" x2="150" y2="84" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <text x="155" y="82" font-family="Inter, sans-serif" font-weight="600" font-size="11" fill="var(--text-secondary)">78.4 GiB Free</text>
+            <text x="155" y="95" font-family="Inter, sans-serif" font-weight="500" font-size="9.8" fill="var(--text-muted)">KV Cache / Multi-Pod</text>
+
+            <!-- Leader Line 3: Solid Cobalt 17.53 GiB Block -->
+            <circle cx="126" cy="132" r="3" fill="#2563EB"/>
+            <line x1="126" y1="132" x2="150" y2="132" stroke="#2563EB" stroke-width="1.4"/>
+            <text x="155" y="130" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="12.5" fill="var(--hero-text-accent)">17.53 GiB NVFP4</text>
+            <text x="155" y="144" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.8" fill="var(--hero-text-accent)">7.91s Snapshot Load</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 5 (BOTTOM-CENTER-LEFT): 100% CALIBRATED CASCADE CHECKLIST
+           ==================================================================== -->
+      <section class="bento-card card-5" aria-label="100% Calibrated Cascade Accuracy">
+        <div style="text-align: center;">
+          <div class="kpi-giant">100%</div>
+          <p class="card-subtitle">empirical routing accuracy with Temperature Scaling (T* at τ = 0.16)</p>
+        </div>
+
+        <div class="c5-gate-pill">Gate: H(p) / ln(K) &lt; 0.16 → Fast Path</div>
+
+        <div class="checklist-stack">
+          <div class="checklist-row">
+            <span class="checklist-row-label">Stage 1 Fast Path (82% SKUs)</span>
+            <span class="status-badge-circle pass" id="badgeRow1" aria-label="Included">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </div>
+
+          <div class="checklist-row">
+            <span class="checklist-row-label">Stage 2 Gemini Flash-Lite (18%)</span>
+            <span class="status-badge-circle pass" id="badgeRow2" aria-label="Included">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </div>
+
+          <div class="checklist-row muted-row">
+            <span class="checklist-row-label">Wasted Cloud LLM Token Calls</span>
+            <span class="status-badge-circle block" id="badgeRow3" aria-label="Eliminated">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 6 (BOTTOM-CENTER-RIGHT): WAFFLE STEP EFFICIENCY RACE
+           ==================================================================== -->
+      <section class="bento-card card-6" aria-label="Forward Passes per Multi-Slot Decision">
+        <div>
+          <h2 class="card-title-mid">Forward Passes / SKU</h2>
+          <p class="card-subtitle">Single-pass block diffusion vs. sequential token decoding</p>
+        </div>
+
+        <div class="waffle-comparison-stack">
+          <!-- Row 1: Decision Gemma (DGEM) -->
+          <div class="waffle-model-block">
+            <div class="waffle-header-line">
+              <span class="waffle-model-title hero">Decision Gemma (DGEM)</span>
+              <span class="waffle-step-count hero" id="heroStepLabel">1 pass (4 slots)</span>
+            </div>
+            <div class="waffle-grid-13x3" id="waffleHeroGrid"></div>
+          </div>
+
+          <!-- Row 2: Autoregressive 27B Baseline -->
+          <div class="waffle-model-block">
+            <div class="waffle-header-line">
+              <span class="waffle-model-title">Autoregressive 27B</span>
+              <span class="waffle-step-count" id="baseStepLabel">16 / 39 steps</span>
+            </div>
+            <div class="waffle-grid-13x3" id="waffleBaseGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 7 (BOTTOM-RIGHT): MODELOPT NVFP4 QUANTIZATION MATRIX
+           ==================================================================== -->
+      <section class="bento-card card-7" aria-label="4-Bit ModelOpt NVFP4 Quantization">
+        <div class="quant-centered-header">
+          <h2 class="quant-title-big">4-Bit NVFP4</h2>
+          <p class="card-subtitle">Blackwell SM120 native W4A4 quantization with zero routing accuracy drop</p>
+        </div>
+
+        <div class="quant-matrix-rows">
+          <!-- 16-bit BF16 Row -->
+          <div class="quant-row">
+            <span class="quant-bit-label">16-bit</span>
+            <div class="quant-pill-group">
+              <div class="quant-pill-track" style="grid-template-columns: repeat(16, 1fr);" id="q16RowA"></div>
+              <div class="quant-pill-track" style="grid-template-columns: repeat(16, 1fr);" id="q16RowB"></div>
+            </div>
+            <span class="quant-gib-label">52.0 GiB</span>
+          </div>
+
+          <!-- 8-bit FP8 Row -->
+          <div class="quant-row">
+            <span class="quant-bit-label">8-bit</span>
+            <div class="quant-pill-group" style="width: 52%;">
+              <div class="quant-pill-track" style="grid-template-columns: repeat(8, 1fr);" id="q8RowA"></div>
+              <div class="quant-pill-track" style="grid-template-columns: repeat(8, 1fr);" id="q8RowB"></div>
+            </div>
+            <span class="quant-gib-label">26.0 GiB</span>
+          </div>
+
+          <!-- 4-bit NVFP4 Animated Compression Row -->
+          <div class="quant-row">
+            <span class="quant-bit-label hero">4-bit</span>
+            <div class="quant-pill-group compress-4bit" id="q4CompressWrap">
+              <div class="quant-pill-track" style="grid-template-columns: repeat(4, 1fr);" id="q4RowA"></div>
+              <div class="quant-pill-track" style="grid-template-columns: repeat(4, 1fr);" id="q4RowB"></div>
+            </div>
+            <span class="quant-gib-label hero">17.5 GiB</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    /**
+     * PARAMETERIZED [TOPIC] CONFIGURATION
+     * Replace this object to adapt the Executive Telemetry board to any new [TOPIC].
+     */
+    const TOPIC_CONFIG = {
+      topicName: "Decision Gemma",
+      topicTag: "DGEM · System-1",
+      architectureSubtitle: "Gemma Diffusion 26B-A4B (4B Active)",
+      hardwareSubtitle: "GKE G4 · RTX PRO 6000 Blackwell (96 GB)",
+      durationSec: 15.0,
+      turnCycleSec: 3.1,
+      skuSamples: [
+        {
+          sku: "SKU #4092 · Lithium Power Station 1200Wh",
+          s1: "Yes (0.99)",
+          s2: "B: Outdoor",
+          s3: "Ground Only",
+          s4: "4.85 / 5.0",
+          entropy: "Calibrated T* · <strong>H/ln(K) = 0.05 &lt; 0.16</strong>"
+        },
+        {
+          sku: "SKU #8814 · Organic Espresso Whole Bean 2lb",
+          s1: "No (1.00)",
+          s2: "A: Grocery",
+          s3: "Air / Ground",
+          s4: "4.92 / 5.0",
+          entropy: "Calibrated T* · <strong>H/ln(K) = 0.03 &lt; 0.16</strong>"
+        },
+        {
+          sku: "SKU #1940 · Ultrasonic Cool Mist Humidifier",
+          s1: "No (0.98)",
+          s2: "D: Home App",
+          s3: "Standard",
+          s4: "4.64 / 5.0",
+          entropy: "Calibrated T* · <strong>H/ln(K) = 0.08 &lt; 0.16</strong>"
+        },
+        {
+          sku: "SKU #6321 · Aerosol Stainless Steel Polish",
+          s1: "Yes (0.97)",
+          s2: "C: Cleaning",
+          s3: "ORM-D Ground",
+          s4: "4.51 / 5.0",
+          entropy: "Calibrated T* · <strong>H/ln(K) = 0.09 &lt; 0.16</strong>"
+        },
+        {
+          sku: "SKU #9503 · Pro Mirrorless Camera Body 45MP",
+          s1: "Yes (0.96)",
+          s2: "E: Photo/Video",
+          s3: "Li-Ion Cont.",
+          s4: "4.96 / 5.0",
+          entropy: "Calibrated T* · <strong>H/ln(K) = 0.04 &lt; 0.16</strong>"
+        }
+      ]
+    };
+
+    // Build Waffle Grids (Card 6: 13 cols × 3 rows = 39 cells)
+    const waffleHeroGrid = document.getElementById('waffleHeroGrid');
+    const waffleBaseGrid = document.getElementById('waffleBaseGrid');
+    const heroCells = [];
+    const baseCells = [];
+
+    for (let i = 0; i < 39; i++) {
+      const hCell = document.createElement('div');
+      hCell.className = i < 4 ? 'waffle-cell active-hero' : 'waffle-cell ghost';
+      waffleHeroGrid.appendChild(hCell);
+      heroCells.push(hCell);
+
+      const bCell = document.createElement('div');
+      bCell.className = i < 12 ? 'waffle-cell active-base' : 'waffle-cell';
+      waffleBaseGrid.appendChild(bCell);
+      baseCells.push(bCell);
+    }
+
+    // Build Quantization Pill Matrices (Card 7)
+    function populatePills(containerId, count, isHero) {
+      const el = document.getElementById(containerId);
+      for (let i = 0; i < count; i++) {
+        const pill = document.createElement('div');
+        pill.className = isHero ? 'quant-pill hero-pill' : 'quant-pill';
+        el.appendChild(pill);
+      }
+    }
+    populatePills('q16RowA', 16, false);
+    populatePills('q16RowB', 16, false);
+    populatePills('q8RowA', 8, false);
+    populatePills('q8RowB', 8, false);
+    populatePills('q4RowA', 4, true);
+    populatePills('q4RowB', 4, true);
+
+    // Animation References
+    const liveTurnCounter = document.getElementById('liveTurnCounter');
+    const liveProgressBar = document.getElementById('liveProgressBar');
+    const winScanline = document.getElementById('winScanline');
+    const commitPulseRing = document.getElementById('commitPulseRing');
+    const skuTitleText = document.getElementById('skuTitleText');
+    const slotVal1 = document.getElementById('slotVal1');
+    const slotVal2 = document.getElementById('slotVal2');
+    const slotVal3 = document.getElementById('slotVal3');
+    const slotVal4 = document.getElementById('slotVal4');
+    const entropyReadout = document.getElementById('entropyReadout');
+    const baseStepLabel = document.getElementById('baseStepLabel');
+    const q4CompressWrap = document.getElementById('q4CompressWrap');
+
+    // Start at 4.2s hero keyframe on initial load so t=0 static screenshots show active progress,
+    // and loop seamlessly across 0.0s .. 15.0s
+    let elapsedSec = 4.2;
+    let lastTimestamp = null;
+    let lastTurnIndex = -1;
+    let pulseTriggeredForTurn = -1;
+
+    function triggerSequenceStart(startAtZero = false) {
+      elapsedSec = startAtZero ? 0.0 : 4.2;
+      lastTimestamp = null;
+      lastTurnIndex = -1;
+      pulseTriggeredForTurn = -1;
+
+      if (startAtZero) {
+        q4CompressWrap.style.transition = 'none';
+        q4CompressWrap.style.width = '100%';
+        void q4CompressWrap.offsetWidth;
+        q4CompressWrap.style.transition = 'width 1.1s cubic-bezier(0.22, 1, 0.36, 1)';
+        setTimeout(() => { q4CompressWrap.style.width = '26%'; }, 60);
+      } else {
+        q4CompressWrap.style.width = '26%';
+      }
+    }
+
+    function updateFrame(now) {
+      if (lastTimestamp === null) {
+        lastTimestamp = now;
+      }
+      // Strictly non-negative delta time prevents -0.0s / -1 counter on initial rAF tick
+      const dt = Math.max(0, (now - lastTimestamp) / 1000);
+      lastTimestamp = now;
+
+      elapsedSec += dt;
+      if (elapsedSec > TOPIC_CONFIG.durationSec) {
+        triggerSequenceStart(true);
+      }
+
+      const safeSec = Math.max(0, elapsedSec);
+
+      // 1. Card 3: Real-Time Cycle Progress & Turn Counter (3.1s per cycle, 1-indexed SKU count)
+      const turnIndex = Math.max(0, Math.floor(safeSec / TOPIC_CONFIG.turnCycleSec));
+      const displayCount = turnIndex + 1;
+      const cycleProgress = (safeSec % TOPIC_CONFIG.turnCycleSec) / TOPIC_CONFIG.turnCycleSec;
+      const pct = Math.max(6, Math.min(100, cycleProgress * 100));
+
+      liveProgressBar.style.width = `${pct.toFixed(1)}%`;
+      winScanline.style.transform = `translateX(${(cycleProgress * 340 - 80).toFixed(1)}%)`;
+
+      if (cycleProgress > 0.80 && pulseTriggeredForTurn !== turnIndex) {
+        pulseTriggeredForTurn = turnIndex;
+        commitPulseRing.classList.remove('active');
+        void commitPulseRing.offsetWidth;
+        commitPulseRing.classList.add('active');
+      }
+
+      if (turnIndex !== lastTurnIndex) {
+        lastTurnIndex = turnIndex;
+        liveTurnCounter.textContent = String(displayCount);
+        liveTurnCounter.classList.add('bump');
+        setTimeout(() => liveTurnCounter.classList.remove('bump'), 200);
+
+        const sample = TOPIC_CONFIG.skuSamples[turnIndex % TOPIC_CONFIG.skuSamples.length];
+        skuTitleText.textContent = sample.sku;
+        slotVal1.textContent = sample.s1;
+        slotVal2.textContent = sample.s2;
+        slotVal3.textContent = sample.s3;
+        slotVal4.textContent = sample.s4;
+        entropyReadout.innerHTML = sample.entropy;
+      }
+
+      // 2. Card 6: Waffle Grid Step Race
+      const heroActiveSlots = safeSec >= 0.25 ? 4 : Math.max(1, Math.floor((safeSec / 0.25) * 4));
+      for (let i = 0; i < 39; i++) {
+        if (i < heroActiveSlots) {
+          heroCells[i].classList.add('active-hero');
+        } else {
+          heroCells[i].classList.remove('active-hero');
+        }
+      }
+
+      // Autoregressive 27B ticks from 6 to 31 steps across the 15s window (never catching up to 39)
+      const baseActiveCount = Math.min(31, 6 + Math.floor((safeSec / TOPIC_CONFIG.durationSec) * 25));
+      baseStepLabel.textContent = `${baseActiveCount} / 39 steps`;
+      for (let i = 0; i < 39; i++) {
+        if (i < baseActiveCount) {
+          baseCells[i].classList.add('active-base');
+        } else {
+          baseCells[i].classList.remove('active-base');
+        }
+      }
+
+      requestAnimationFrame(updateFrame);
+    }
+
+    // Embedded iframe mode detection
+    if (window.self !== window.top || window.location.search.includes('embed=1')) {
+      document.documentElement.classList.add('embedded-mode');
+    }
+
+    // Synchronized Theme Toggle across the 3-page Visual Explainer Suite
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (themeIcon && themeLabel) {
+        if (theme === 'dark') {
+          themeIcon.textContent = '🌙';
+          themeLabel.textContent = 'Dark Mode';
+        } else {
+          themeIcon.textContent = '☀️';
+          themeLabel.textContent = 'Light Mode';
+        }
+      }
+    }
+
+    function initTheme() {
+      const paramTheme = new URLSearchParams(window.location.search).get('theme');
+      let parentTheme = null;
+      try {
+        if (window.self !== window.top && window.parent.document && window.parent.document.documentElement) {
+          parentTheme = window.parent.document.documentElement.getAttribute('data-theme');
+        }
+      } catch (e) {}
+      const saved = (paramTheme === 'dark' || paramTheme === 'light')
+        ? paramTheme
+        : ((parentTheme === 'dark' || parentTheme === 'light') ? parentTheme : (localStorage.getItem('dgem-theme') || 'light'));
+      applyTheme(saved);
+    }
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'light' ? 'dark' : 'light';
+        localStorage.setItem('dgem-theme', next);
+        applyTheme(next);
+      });
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'dgem-theme' && e.newValue) {
+        applyTheme(e.newValue);
+      }
+    });
+
+    initTheme();
+
+    // Start Animation Loop
+    triggerSequenceStart(false);
+    requestAnimationFrame(updateFrame);
+  </script>
+</body>
+</html>

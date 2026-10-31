@@ -1,31 +1,16 @@
 <!DOCTYPE html>
-<!--
- Copyright 2026 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     https://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
--->
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decision Gemma (DGEM) on Google Cloud — Studio Aluminum Bento Motion</title>
+  <title>Decision Gemma (DGEM) on Google Cloud — System-1 Diffusion KPIs</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* 70 / 20 / 10 Studio Aluminum Bento Motion Palette */
-      --bg-viewport: #CBD3DF;
+      /* 70 / 20 / 10 Google Cloud Studio Aluminum Palette (Light Default) */
+      --bg-page: #CBD3DF;
       --bg-canvas: #DCE2EA;
       --card-grad-start: #F8FAFC;
       --card-grad-mid: #EEF2F6;
@@ -35,6 +20,16 @@
         0 10px 28px -8px rgba(15, 23, 42, 0.07),
         0 2px 6px -1px rgba(15, 23, 42, 0.04),
         inset 0 1.5px 0 0 rgba(255, 255, 255, 0.92);
+      --subtray-bg: rgba(255, 255, 255, 0.56);
+      --subtray-border: rgba(255, 255, 255, 0.85);
+      --checklist-row-bg: rgba(255, 255, 255, 0.82);
+      --checklist-row-border: rgba(255, 255, 255, 0.95);
+      --pill-surface: rgba(255, 255, 255, 0.88);
+      --win-bg: #FFFFFF;
+      --win-titlebar: #F1F5F9;
+      --win-border: #E2E8F0;
+      --tile-bg: #F8FAFC;
+      --tile-border: #BFDBFE;
 
       /* 20% Ink & Neutral Slate Baselines */
       --text-ink: #1B2028;
@@ -45,6 +40,7 @@
       /* 10% Electric Cobalt & Specular Cyan Accents */
       --hero-blue: #2563EB;
       --hero-blue-dark: #1D4ED8;
+      --hero-text-accent: #2563EB;
       --hero-cyan-glint: #60A5FA;
       --hero-cyan-bright: #93C5FD;
 
@@ -55,21 +51,35 @@
     }
 
     html[data-theme="dark"] {
-      --bg-viewport: #090D16;
-      --bg-canvas: #0F172A;
+      --bg-page: #060911;
+      --bg-canvas: #0B0F19;
       --card-grad-start: #1E293B;
-      --card-grad-mid: #172033;
-      --card-grad-end: #111827;
+      --card-grad-mid: #161F33;
+      --card-grad-end: #0F172A;
       --card-border-outer: rgba(148, 163, 184, 0.18);
       --card-shadow:
-        0 12px 30px -8px rgba(0, 0, 0, 0.55),
+        0 14px 32px -8px rgba(0, 0, 0, 0.45),
+        0 2px 6px -1px rgba(0, 0, 0, 0.30),
         inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+      --subtray-bg: rgba(15, 23, 42, 0.56);
+      --subtray-border: rgba(148, 163, 184, 0.16);
+      --checklist-row-bg: rgba(15, 23, 42, 0.68);
+      --checklist-row-border: rgba(148, 163, 184, 0.18);
+      --pill-surface: rgba(30, 41, 59, 0.90);
+      --win-bg: #0F172A;
+      --win-titlebar: #1E293B;
+      --win-border: #334155;
+      --tile-bg: #1E293B;
+      --tile-border: rgba(59, 130, 246, 0.35);
+
       --text-ink: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --text-muted: #64748B;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
       --neutral-slot: #334155;
+
       --hero-blue: #3B82F6;
       --hero-blue-dark: #60A5FA;
+      --hero-text-accent: #60A5FA;
       --hero-cyan-glint: #60A5FA;
       --hero-cyan-bright: #93C5FD;
     }
@@ -83,7 +93,7 @@
     html, body {
       width: 100%;
       height: 100%;
-      background: var(--bg-viewport);
+      background: var(--bg-page);
       font-family: var(--font-sans);
       color: var(--text-ink);
       -webkit-font-smoothing: antialiased;
@@ -91,29 +101,27 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       overflow: hidden;
       user-select: none;
-      transition: background-color 0.25s ease, color 0.25s ease;
+      transition: background 0.25s ease, color 0.25s ease;
     }
 
-    /* Unified Top Suite Navigation Bar */
+    /* Shared Top Suite Navigation Bar (Identical Across All 3 Pages) */
     .top-suite-nav {
-      width: min(97vw, calc(89.5vh * (16 / 9)));
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 14px;
-      margin-bottom: 8px;
-      background: rgba(248, 250, 252, 0.78);
+      width: min(97vw, calc(91vh * (16 / 9)));
+      height: 36px;
+      background: var(--pill-surface);
       backdrop-filter: blur(12px);
       border: 1px solid var(--card-border-outer);
       border-radius: 999px;
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
       z-index: 90;
-    }
-
-    html[data-theme="dark"] .top-suite-nav {
-      background: rgba(30, 41, 59, 0.82);
+      flex-shrink: 0;
     }
 
     .suite-nav-links {
@@ -122,63 +130,69 @@
       gap: 6px;
     }
 
-    .suite-brand {
+    .suite-nav-brand {
       font-family: var(--font-mono);
       font-size: 11px;
       font-weight: 700;
-      color: var(--hero-blue);
-      padding: 3px 10px 3px 6px;
+      color: var(--hero-text-accent);
+      padding-right: 8px;
       border-right: 1px solid var(--card-border-outer);
-      margin-right: 4px;
-      letter-spacing: 0.02em;
+      white-space: nowrap;
     }
 
-    .suite-nav-pill {
+    .suite-nav-link {
       text-decoration: none;
       font-size: 11.5px;
       font-weight: 600;
       color: var(--text-secondary);
       padding: 4px 11px;
       border-radius: 999px;
-      transition: all 0.16s ease;
+      transition: all 0.15s ease;
+      white-space: nowrap;
     }
 
-    .suite-nav-pill:hover {
+    .suite-nav-link:hover {
       color: var(--text-ink);
-      background: rgba(148, 163, 184, 0.15);
+      background: rgba(37, 99, 235, 0.10);
     }
 
-    .suite-nav-pill.active {
-      background: var(--hero-blue);
+    .suite-nav-link.active {
       color: #FFFFFF;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+      background: var(--hero-blue);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
     }
 
     .theme-toggle-btn {
-      background: rgba(148, 163, 184, 0.16);
+      background: rgba(37, 99, 235, 0.10);
       color: var(--text-ink);
-      border: 1px solid var(--card-border-outer);
+      border: 1px solid rgba(37, 99, 235, 0.25);
       border-radius: 999px;
       padding: 4px 11px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
     }
 
-    /* 16:9 Locked Aspect-Ratio Bento Stage */
+    .theme-toggle-btn:hover {
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    /* 16:9 Locked Aspect-Ratio Stage */
     .stage-wrapper {
       position: relative;
-      width: min(97vw, calc(89.5vh * (16 / 9)));
+      width: min(97vw, calc(91vh * (16 / 9)));
       aspect-ratio: 16 / 9;
       background: var(--bg-canvas);
       border-radius: 28px;
       padding: 1.85%;
       box-shadow:
         0 28px 65px -15px rgba(15, 23, 42, 0.20),
-        0 0 0 1px rgba(255, 255, 255, 0.65);
+        0 0 0 1px rgba(255, 255, 255, 0.45);
       display: flex;
       flex-direction: column;
     }
@@ -270,7 +284,7 @@
       text-align: center;
       background:
         radial-gradient(circle at 50% 36%, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0) 68%),
-        linear-gradient(155deg, #F8FAFC 0%, #EDF2F8 55%, #E2E8F2 100%);
+        linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 55%, var(--card-grad-end) 100%);
     }
 
     .gcp-brand-header {
@@ -287,8 +301,8 @@
       gap: 6px;
       padding: 4px 10px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.88);
-      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: var(--pill-surface);
+      border: 1px solid var(--card-border-outer);
       box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
       font-size: clamp(9.5px, 0.72vw, 11.5px);
       font-weight: 700;
@@ -301,9 +315,9 @@
       font-family: var(--font-mono);
       font-size: clamp(9px, 0.66vw, 11px);
       font-weight: 700;
-      color: var(--hero-blue);
-      background: rgba(37, 99, 235, 0.10);
-      border: 1px solid rgba(37, 99, 235, 0.22);
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.28);
       padding: 3px 8px;
       border-radius: 999px;
       white-space: nowrap;
@@ -363,7 +377,7 @@
     .hero-model-arch {
       font-size: clamp(10px, 0.82vw, 13px);
       font-weight: 600;
-      color: var(--hero-blue-dark);
+      color: var(--hero-text-accent);
       letter-spacing: -0.01em;
       white-space: nowrap;
     }
@@ -388,9 +402,9 @@
       font-family: var(--font-mono);
       font-size: clamp(8.5px, 0.62vw, 10px);
       font-weight: 600;
-      color: #334155;
-      background: rgba(255, 255, 255, 0.78);
-      border: 1px solid rgba(148, 163, 184, 0.30);
+      color: var(--text-ink);
+      background: var(--pill-surface);
+      border: 1px solid var(--card-border-outer);
       padding: 2px 7px;
       border-radius: 6px;
       white-space: nowrap;
@@ -425,7 +439,7 @@
       gap: 3.2%;
       background:
         radial-gradient(circle at 74% 52%, rgba(37, 99, 235, 0.10) 0%, rgba(37, 99, 235, 0) 68%),
-        linear-gradient(155deg, #F8FAFC 0%, #EEF2F6 55%, #E3E8F0 100%);
+        linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 55%, var(--card-grad-end) 100%);
     }
 
     .c3-left-column {
@@ -438,8 +452,8 @@
 
     .c3-arch-summary-pill {
       margin: auto 0;
-      background: rgba(255, 255, 255, 0.68);
-      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: var(--subtray-bg);
+      border: 1px solid var(--card-border-outer);
       border-radius: 12px;
       padding: 9px 11px;
       display: flex;
@@ -451,7 +465,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.5px, 0.65vw, 10.5px);
       font-weight: 700;
-      color: var(--hero-blue-dark);
+      color: var(--hero-text-accent);
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
@@ -498,7 +512,7 @@
     .c3-progress-rail {
       width: 100%;
       height: 7px;
-      background: #CFD7E3;
+      background: var(--neutral-slot);
       border-radius: 999px;
       overflow: hidden;
       box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
@@ -532,9 +546,9 @@
 
     .sim-window {
       width: 100%;
-      background: #FFFFFF;
+      background: var(--win-bg);
       border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.34);
+      border: 1px solid var(--card-border-outer);
       box-shadow:
         0 18px 36px -10px rgba(15, 23, 42, 0.14),
         0 2px 6px rgba(15, 23, 42, 0.04);
@@ -546,8 +560,8 @@
 
     .sim-win-titlebar {
       height: 30px;
-      background: #F1F5F9;
-      border-bottom: 1px solid #E2E8F0;
+      background: var(--win-titlebar);
+      border-bottom: 1px solid var(--win-border);
       padding: 0 12px;
       display: flex;
       align-items: center;
@@ -576,7 +590,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.8px, 0.66vw, 11px);
       font-weight: 600;
-      color: #475569;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
 
@@ -584,8 +598,8 @@
       font-family: var(--font-mono);
       font-size: clamp(8px, 0.60vw, 9.8px);
       font-weight: 700;
-      color: var(--hero-blue);
-      background: rgba(37, 99, 235, 0.10);
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.12);
       padding: 2px 7px;
       border-radius: 4px;
       white-space: nowrap;
@@ -606,12 +620,12 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+      background: var(--win-bg);
     }
 
     .sku-context-bar {
-      background: #F1F5F9;
-      border: 1px solid #E2E8F0;
+      background: var(--win-titlebar);
+      border: 1px solid var(--win-border);
       border-radius: 9px;
       padding: 7px 10px;
       display: flex;
@@ -624,7 +638,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.8px, 0.68vw, 11px);
       font-weight: 600;
-      color: #1E293B;
+      color: var(--text-ink);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -644,7 +658,7 @@
 
     /* Bidirectional Diffusion Canvas Strip inside Window */
     .canvas-mask-strip {
-      background: #EFF6FF;
+      background: rgba(37, 99, 235, 0.08);
       border: 1px dashed #93C5FD;
       border-radius: 8px;
       padding: 6px 10px;
@@ -653,24 +667,24 @@
       justify-content: space-between;
       font-family: var(--font-mono);
       font-size: clamp(8px, 0.62vw, 10px);
-      color: #1E40AF;
+      color: var(--hero-text-accent);
       white-space: nowrap;
     }
 
     .canvas-mask-tokens {
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
     }
 
     .slot-grid-2x2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
 
     .slot-tile {
-      background: #F8FAFC;
-      border: 1px solid #BFDBFE;
+      background: var(--tile-bg);
+      border: 1px solid var(--tile-border);
       border-radius: 9px;
       padding: 8px 10px;
       display: flex;
@@ -689,7 +703,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.2px, 0.62vw, 10.2px);
       font-weight: 600;
-      color: #475569;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
 
@@ -697,8 +711,8 @@
       font-family: var(--font-mono);
       font-size: clamp(8.5px, 0.64vw, 10.5px);
       font-weight: 700;
-      color: var(--hero-blue-dark);
-      background: rgba(37, 99, 235, 0.11);
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.12);
       padding: 1.5px 6px;
       border-radius: 4px;
       white-space: nowrap;
@@ -707,7 +721,7 @@
     .slot-conf-bar {
       width: 100%;
       height: 4.5px;
-      background: #DBEAFE;
+      background: rgba(59, 130, 246, 0.20);
       border-radius: 999px;
       overflow: hidden;
     }
@@ -724,19 +738,19 @@
       align-items: center;
       justify-content: space-between;
       padding-top: 6px;
-      border-top: 1px solid #F1F5F9;
+      border-top: 1px solid var(--win-border);
     }
 
     .entropy-gate-readout {
       font-family: var(--font-mono);
       font-size: clamp(8.2px, 0.62vw, 10px);
       font-weight: 600;
-      color: #475569;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
 
     .entropy-gate-readout strong {
-      color: #059669;
+      color: #10B981;
     }
 
     .commit-action-btn {
@@ -785,9 +799,9 @@
       font-family: var(--font-mono);
       font-size: clamp(8.8px, 0.66vw, 10.8px);
       font-weight: 600;
-      color: var(--hero-blue-dark);
-      background: rgba(37, 99, 235, 0.09);
-      border: 1px solid rgba(37, 99, 235, 0.22);
+      color: var(--hero-text-accent);
+      background: rgba(37, 99, 235, 0.10);
+      border: 1px solid rgba(59, 130, 246, 0.25);
       padding: 4px 11px;
       border-radius: 999px;
       white-space: nowrap;
@@ -800,8 +814,8 @@
     }
 
     .checklist-row {
-      background: rgba(255, 255, 255, 0.80);
-      border: 1px solid rgba(255, 255, 255, 0.95);
+      background: var(--checklist-row-bg);
+      border: 1px solid var(--checklist-row-border);
       border-radius: 12px;
       padding: clamp(9px, 0.85vw, 13px) clamp(11px, 0.95vw, 15px);
       display: flex;
@@ -832,9 +846,6 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transform: scale(1);
-      opacity: 1;
-      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
     }
 
     .status-badge-circle.pass {
@@ -844,8 +855,8 @@
     }
 
     .status-badge-circle.block {
-      background: #D5DCE6;
-      color: #64748B;
+      background: var(--neutral-slot);
+      color: var(--text-secondary);
     }
 
     /* ============================================================================
@@ -862,8 +873,8 @@
     }
 
     .waffle-model-block {
-      background: rgba(255, 255, 255, 0.52);
-      border: 1px solid rgba(255, 255, 255, 0.82);
+      background: var(--subtray-bg);
+      border: 1px solid var(--subtray-border);
       border-radius: 13px;
       padding: clamp(8px, 0.8vw, 12px);
       display: flex;
@@ -898,7 +909,7 @@
     }
 
     .waffle-step-count.hero {
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
     }
 
     .waffle-grid-13x3 {
@@ -910,12 +921,12 @@
     .waffle-cell {
       aspect-ratio: 1.15 / 1;
       border-radius: 3.5px;
-      background: #CFD7E3;
+      background: var(--neutral-slot);
       transition: background-color 0.14s ease, transform 0.18s ease, box-shadow 0.18s ease;
     }
 
     .waffle-cell.ghost {
-      background: rgba(207, 215, 227, 0.35);
+      background: rgba(148, 163, 184, 0.25);
     }
 
     .waffle-cell.active-hero {
@@ -954,8 +965,8 @@
     }
 
     .quant-row {
-      background: rgba(255, 255, 255, 0.54);
-      border: 1px solid rgba(255, 255, 255, 0.85);
+      background: var(--subtray-bg);
+      border: 1px solid var(--subtray-border);
       border-radius: 12px;
       padding: clamp(8px, 0.78vw, 12px) clamp(10px, 0.85vw, 13px);
       display: grid;
@@ -986,7 +997,7 @@
     }
 
     .quant-gib-label.hero {
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       font-weight: 700;
     }
 
@@ -1010,79 +1021,30 @@
 
     .quant-pill {
       border-radius: 3px;
-      background: #BCC6D4;
+      background: #94A3B8;
     }
 
     .quant-pill.hero-pill {
       background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
       box-shadow: 0 1px 4px rgba(37, 99, 235, 0.28);
     }
-
-    /* ============================================================================
-       MINIMAL FLOATING DIRECTOR BAR (HIDDEN IN FULLSCREEN FOR CLEAN VIDEO CAPTURE)
-       ============================================================================ */
-    .director-hud {
-      position: fixed;
-      bottom: 10px;
-      right: 18px;
-      background: rgba(15, 23, 42, 0.86);
-      backdrop-filter: blur(10px);
-      color: #F8FAFC;
-      padding: 5px 12px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      font-weight: 600;
-      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
-      z-index: 100;
-    }
-
-    .hud-btn {
-      background: rgba(255, 255, 255, 0.12);
-      color: #F8FAFC;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 999px;
-      padding: 3px 9px;
-      font-size: 10.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s ease;
-    }
-
-    .hud-btn:hover {
-      background: rgba(255, 255, 255, 0.24);
-    }
-
-    .hud-clock {
-      font-family: var(--font-mono);
-      font-size: 10.5px;
-      color: #93C5FD;
-      min-width: 74px;
-      text-align: center;
-    }
-
-    :fullscreen .director-hud {
-      display: none;
-    }
   </style>
 </head>
 <body>
 
-  <!-- Unified Suite Navigation Bar -->
-  <nav class="top-suite-nav" aria-label="DGEM GKE G4 Visual Explainer Suite">
+  <!-- Unified Suite Navigation & Theme Bar -->
+  <header class="top-suite-nav" aria-label="Decision Gemma Architecture Suite Navigation">
     <div class="suite-nav-links">
-      <span class="suite-brand">DGEM · GKE G4 SUITE</span>
-      <a class="suite-nav-pill active" href="dgem_bento_motion_explainer.html">Bento 1: System-1 Diffusion KPIs</a>
-      <a class="suite-nav-pill" href="dgem_g4_scaling_bento_explainer.html">Bento 2: G4 Sizing, MIG/MPS &amp; Pattern 4</a>
-      <a class="suite-nav-pill" href="dgem_system1_architecture_explainer.html">Full Architecture &amp; Deployment Studio</a>
+      <span class="suite-nav-brand">DGEM · GKE G4 SUITE</span>
+      <a class="suite-nav-link active" href="dgem_bento_motion_explainer.html">1. System-1 Diffusion KPIs</a>
+      <a class="suite-nav-link" href="dgem_g4_scaling_bento_explainer.html">2. G4 Sizing, MIG/MPS &amp; Pattern 4</a>
+      <a class="suite-nav-link" href="dgem_system1_architecture_explainer.html">3. Full Architecture &amp; Deployment Studio</a>
     </div>
-    <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Toggle Studio Aluminum Light / Dark Mode">
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button">
       <span id="themeIcon">☀️</span>
-      <span id="themeLabel">Studio Aluminum (Light)</span>
+      <span id="themeLabel">Light Mode</span>
     </button>
-  </nav>
+  </header>
 
   <main class="stage-wrapper" id="bentoStage">
     <div class="bento-grid">
@@ -1235,7 +1197,7 @@
               <polygon points="42,39 76,54 76,144 42,129" fill="url(#heroBarLeft)"/>
               <polygon points="54,44 65,49 65,139 54,134" fill="url(#cyanGlintStripe)"/>
               <polygon points="76,54 110,39 110,129 76,144" fill="url(#heroBarRight)"/>
-              <text x="76" y="16" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="13" fill="#1D4ED8">57 ms p50</text>
+              <text x="76" y="16" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="13" fill="var(--hero-text-accent)">57 ms p50</text>
             </g>
 
             <!-- BASELINE 3D ISOMETRIC PRISM (Center x=204) -->
@@ -1243,15 +1205,15 @@
               <polygon points="204,104 236,118 204,132 172,118" fill="#E2E8F0" stroke="#F8FAFC" stroke-width="0.9"/>
               <polygon points="172,118 204,132 204,144 172,130" fill="#CBD5E1"/>
               <polygon points="204,132 236,118 236,130 204,144" fill="#94A3B8"/>
-              <text x="204" y="95" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="#64748B">600 ms p50</text>
+              <text x="204" y="95" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="var(--text-secondary)">600 ms p50</text>
             </g>
 
             <!-- Two-Line Non-Overlapping Base Labels (128px center-to-center distance) -->
-            <text x="76" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="11.5" fill="#1B2028">Decision Gemma</text>
-            <text x="76" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.5" fill="#2563EB">1-Pass Diffusion</text>
+            <text x="76" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="11.5" fill="var(--text-ink)">Decision Gemma</text>
+            <text x="76" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.5" fill="var(--hero-text-accent)">1-Pass Diffusion</text>
 
-            <text x="204" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="11.5" fill="#5A6577">Autoregressive 27B</text>
-            <text x="204" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="500" font-size="9.5" fill="#7B8698">Sequential LLM</text>
+            <text x="204" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="11.5" fill="var(--text-secondary)">Autoregressive 27B</text>
+            <text x="204" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="500" font-size="9.5" fill="var(--text-muted)">Sequential LLM</text>
           </svg>
         </div>
       </section>
@@ -1401,20 +1363,20 @@
             <!-- Leader Line 1: Top of 96 GB Tank -->
             <circle cx="126" cy="36" r="2.8" fill="#475569"/>
             <line x1="126" y1="36" x2="150" y2="36" stroke="#64748B" stroke-width="1.2"/>
-            <text x="155" y="34" font-family="Inter, sans-serif" font-weight="700" font-size="11.5" fill="#1B2028">96 GB G4 VRAM</text>
-            <text x="155" y="48" font-family="Inter, sans-serif" font-weight="500" font-size="10" fill="#5A6577">RTX PRO 6000 GPU</text>
+            <text x="155" y="34" font-family="Inter, sans-serif" font-weight="700" font-size="11.5" fill="var(--text-ink)">96 GB G4 VRAM</text>
+            <text x="155" y="48" font-family="Inter, sans-serif" font-weight="500" font-size="10" fill="var(--text-secondary)">RTX PRO 6000 GPU</text>
 
             <!-- Leader Line 2: Middle Free Headroom -->
             <circle cx="126" cy="84" r="2.8" fill="#94A3B8"/>
             <line x1="126" y1="84" x2="150" y2="84" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="2 2"/>
-            <text x="155" y="82" font-family="Inter, sans-serif" font-weight="600" font-size="11" fill="#5A6577">78.4 GiB Free</text>
-            <text x="155" y="95" font-family="Inter, sans-serif" font-weight="500" font-size="9.8" fill="#7B8698">KV Cache / Multi-Pod</text>
+            <text x="155" y="82" font-family="Inter, sans-serif" font-weight="600" font-size="11" fill="var(--text-secondary)">78.4 GiB Free</text>
+            <text x="155" y="95" font-family="Inter, sans-serif" font-weight="500" font-size="9.8" fill="var(--text-muted)">KV Cache / Multi-Pod</text>
 
             <!-- Leader Line 3: Solid Cobalt 17.53 GiB Block -->
             <circle cx="126" cy="132" r="3" fill="#2563EB"/>
             <line x1="126" y1="132" x2="150" y2="132" stroke="#2563EB" stroke-width="1.4"/>
-            <text x="155" y="130" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="12.5" fill="#1D4ED8">17.53 GiB NVFP4</text>
-            <text x="155" y="144" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.8" fill="#2563EB">7.91s Snapshot Load</text>
+            <text x="155" y="130" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="12.5" fill="var(--hero-text-accent)">17.53 GiB NVFP4</text>
+            <text x="155" y="144" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.8" fill="var(--hero-text-accent)">7.91s Snapshot Load</text>
           </svg>
         </div>
       </section>
@@ -1529,21 +1491,12 @@
     </div>
   </main>
 
-  <!-- Subtle Floating Playback Scrubber Bar (Auto-Hides in Fullscreen) -->
-  <nav class="director-hud" aria-label="Animation Playback Controls">
-    <button class="hud-btn" id="btnPlayPause" type="button">Pause</button>
-    <button class="hud-btn" id="btnRestart" type="button">Restart 0:00</button>
-    <span class="hud-clock" id="hudClock">04.2s / 15.0s</span>
-    <button class="hud-btn" id="btnFullscreen" type="button">Fullscreen</button>
-  </nav>
-
   <script>
     /**
      * PARAMETERIZED [TOPIC] CONFIGURATION
-     * Replace this object (or use the `bento-motion-explainer` skill / `bento-visual-designer` agent)
-     * to adapt the Studio Aluminum Bento Motion board to any new [TOPIC].
+     * Replace this object to adapt the Executive Telemetry board to any new [TOPIC].
      */
-    const BENTO_TOPIC_CONFIG = {
+    const TOPIC_CONFIG = {
       topicName: "Decision Gemma",
       topicTag: "DGEM · System-1",
       architectureSubtitle: "Gemma Diffusion 26B-A4B (4B Active)",
@@ -1641,10 +1594,7 @@
     const entropyReadout = document.getElementById('entropyReadout');
     const baseStepLabel = document.getElementById('baseStepLabel');
     const q4CompressWrap = document.getElementById('q4CompressWrap');
-    const hudClock = document.getElementById('hudClock');
-    const btnPlayPause = document.getElementById('btnPlayPause');
 
-    let isPlaying = true;
     // Start at 4.2s hero keyframe on initial load so t=0 static screenshots show active progress,
     // and loop seamlessly across 0.0s .. 15.0s
     let elapsedSec = 4.2;
@@ -1677,22 +1627,17 @@
       const dt = Math.max(0, (now - lastTimestamp) / 1000);
       lastTimestamp = now;
 
-      if (isPlaying) {
-        elapsedSec += dt;
-        if (elapsedSec > BENTO_TOPIC_CONFIG.durationSec) {
-          triggerSequenceStart(true);
-        }
+      elapsedSec += dt;
+      if (elapsedSec > TOPIC_CONFIG.durationSec) {
+        triggerSequenceStart(true);
       }
 
       const safeSec = Math.max(0, elapsedSec);
 
-      // 1. Update HUD Clock
-      hudClock.textContent = `${safeSec.toFixed(1).padStart(4, '0')}s / 15.0s`;
-
-      // 2. Card 3: Real-Time Cycle Progress & Turn Counter (3.1s per cycle, 1-indexed SKU count)
-      const turnIndex = Math.max(0, Math.floor(safeSec / BENTO_TOPIC_CONFIG.turnCycleSec));
+      // 1. Card 3: Real-Time Cycle Progress & Turn Counter (3.1s per cycle, 1-indexed SKU count)
+      const turnIndex = Math.max(0, Math.floor(safeSec / TOPIC_CONFIG.turnCycleSec));
       const displayCount = turnIndex + 1;
-      const cycleProgress = (safeSec % BENTO_TOPIC_CONFIG.turnCycleSec) / BENTO_TOPIC_CONFIG.turnCycleSec;
+      const cycleProgress = (safeSec % TOPIC_CONFIG.turnCycleSec) / TOPIC_CONFIG.turnCycleSec;
       const pct = Math.max(6, Math.min(100, cycleProgress * 100));
 
       liveProgressBar.style.width = `${pct.toFixed(1)}%`;
@@ -1711,7 +1656,7 @@
         liveTurnCounter.classList.add('bump');
         setTimeout(() => liveTurnCounter.classList.remove('bump'), 200);
 
-        const sample = BENTO_TOPIC_CONFIG.skuSamples[turnIndex % BENTO_TOPIC_CONFIG.skuSamples.length];
+        const sample = TOPIC_CONFIG.skuSamples[turnIndex % TOPIC_CONFIG.skuSamples.length];
         skuTitleText.textContent = sample.sku;
         slotVal1.textContent = sample.s1;
         slotVal2.textContent = sample.s2;
@@ -1720,7 +1665,7 @@
         entropyReadout.innerHTML = sample.entropy;
       }
 
-      // 3. Card 6: Waffle Grid Step Race
+      // 2. Card 6: Waffle Grid Step Race
       const heroActiveSlots = safeSec >= 0.25 ? 4 : Math.max(1, Math.floor((safeSec / 0.25) * 4));
       for (let i = 0; i < 39; i++) {
         if (i < heroActiveSlots) {
@@ -1731,7 +1676,7 @@
       }
 
       // Autoregressive 27B ticks from 6 to 31 steps across the 15s window (never catching up to 39)
-      const baseActiveCount = Math.min(31, 6 + Math.floor((safeSec / BENTO_TOPIC_CONFIG.durationSec) * 25));
+      const baseActiveCount = Math.min(31, 6 + Math.floor((safeSec / TOPIC_CONFIG.durationSec) * 25));
       baseStepLabel.textContent = `${baseActiveCount} / 39 steps`;
       for (let i = 0; i < 39; i++) {
         if (i < baseActiveCount) {
@@ -1743,26 +1688,6 @@
 
       requestAnimationFrame(updateFrame);
     }
-
-    // Controls
-    btnPlayPause.addEventListener('click', () => {
-      isPlaying = !isPlaying;
-      btnPlayPause.textContent = isPlaying ? 'Pause' : 'Play';
-    });
-
-    document.getElementById('btnRestart').addEventListener('click', () => {
-      isPlaying = true;
-      btnPlayPause.textContent = 'Pause';
-      triggerSequenceStart(true);
-    });
-
-    document.getElementById('btnFullscreen').addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-      } else {
-        document.exitFullscreen();
-      }
-    });
 
     // Embedded iframe mode detection
     if (window.self !== window.top || window.location.search.includes('embed=1')) {
@@ -1779,16 +1704,25 @@
       if (themeIcon && themeLabel) {
         if (theme === 'dark') {
           themeIcon.textContent = '🌙';
-          themeLabel.textContent = 'Slate Dark';
+          themeLabel.textContent = 'Dark Mode';
         } else {
           themeIcon.textContent = '☀️';
-          themeLabel.textContent = 'Studio Aluminum (Light)';
+          themeLabel.textContent = 'Light Mode';
         }
       }
     }
 
     function initTheme() {
-      const saved = localStorage.getItem('dgem-theme') || 'light';
+      const paramTheme = new URLSearchParams(window.location.search).get('theme');
+      let parentTheme = null;
+      try {
+        if (window.self !== window.top && window.parent.document && window.parent.document.documentElement) {
+          parentTheme = window.parent.document.documentElement.getAttribute('data-theme');
+        }
+      } catch (e) {}
+      const saved = (paramTheme === 'dark' || paramTheme === 'light')
+        ? paramTheme
+        : ((parentTheme === 'dark' || parentTheme === 'light') ? parentTheme : (localStorage.getItem('dgem-theme') || 'light'));
       applyTheme(saved);
     }
 

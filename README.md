@@ -1,3 +1,97 @@
+# `dgem` on GKE with NVIDIA G4 GPUs: Visual Architecture Studio & Enterprise Deployment Bundle
+
+<div align="center">
+
+[![Live Interactive Visual Studio](https://img.shields.io/badge/%E2%96%B6_Launch_Interactive_3--Tab_Visual_Studio-GitHub_Pages-1A73E8?style=for-the-badge&logo=googlecloud&logoColor=white)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_bento_motion_explainer.html)
+[![Tab 1: System-1 Diffusion KPIs](https://img.shields.io/badge/1._System--1_Diffusion_KPIs-Live_Board-1A73E8?style=flat-square)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_bento_motion_explainer.html)
+[![Tab 2: G4 Sizing, MIG/MPS & Pattern 4](https://img.shields.io/badge/2._G4_Sizing%2C_MIG%2FMPS_%26_Pattern_4-Live_Board-188038?style=flat-square)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_g4_scaling_bento_explainer.html)
+[![Tab 3: Full Architecture & Deployment Studio](https://img.shields.io/badge/3._Full_Architecture_%26_Deployment_Studio-Live_Diagrams-9334E6?style=flat-square)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_system1_architecture_explainer.html)
+
+</div>
+
+> **Interactive Visual Explainer Suite (Auto-Adapts to Your GitHub Light / Dark Mode Theme)**  
+> Below is the full rendered Visual Explainer Suite for **Decision Gemma (`DiffusionGemma 26B-A4B NVFP4`) on GKE G4 (`NVIDIA RTX PRO 6000 Blackwell`)**. Click any board below to open the live interactive 3-tab HTML studio in your browser with animated simulations, Light/Dark theme switching, and SVG zoom/pan controls.
+
+---
+
+### 1. System-1 Discrete Diffusion KPIs & Calibrated Stage-2 Cascade
+*Single-pass `O(1)` 128-token bidirectional block denoising (`57 ms` p50, `10.5x` faster than sequential 27B autoregressive decoding), `17.53 GiB` 4-bit NVFP4 footprint (`7.91s` Hyperdisk snapshot load), and `100%` empirical routing accuracy below the $\tau = 0.16$ normalized Shannon entropy gate.*
+
+<p align="center">
+  <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_bento_motion_explainer.html">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/board1_system1_dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="docs/assets/board1_system1_light.png">
+      <img alt="1. System-1 Diffusion KPIs & Calibrated Stage-2 Cascade" src="docs/assets/board1_system1_light.png" width="100%">
+    </picture>
+  </a>
+</p>
+
+---
+
+### 2. GKE G4 Machine Sizing (`24GB` / `48GB` / `96GB`), MIG/MPS Multi-Instance Sharing & Pattern 4 Hybrid Scaling
+*Right-sizing guide across `g4-standard-12` (`24 GB` 1/4 vGPU), `g4-standard-24` (`48 GB` 1/2 vGPU), and `g4-standard-48` (`96 GB` Full GPU with `2x–3x` NVIDIA MPS or `2g.48gb` Hardware MIG), paired with **Pattern 4 Hybrid Scaling** (1x Always-On On-Demand baseline for `0s` cold start + elastic Spot & DWS Flex-Start burst).*
+
+<p align="center">
+  <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_g4_scaling_bento_explainer.html">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/board2_g4_scaling_dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="docs/assets/board2_g4_scaling_light.png">
+      <img alt="2. G4 Machine Sizing, MIG/MPS GPU Sharing & Pattern 4 Hybrid Scaling" src="docs/assets/board2_g4_scaling_light.png" width="100%">
+    </picture>
+  </a>
+</p>
+
+---
+
+### 3. Architecture & Deployment Deep-Dive Diagrams
+
+#### 3A. End-to-End GKE G4 Runtime, 3-Layer Fast-Start (`7.91s`) & Selective Vertex AI Cascade
+<p align="center">
+  <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_system1_architecture_explainer.html">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/arch1_gke_runtime_dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="docs/assets/arch1_gke_runtime_light.png">
+      <img alt="End-to-End GKE G4 Runtime & 3-Layer Fast-Start Architecture" src="docs/assets/arch1_gke_runtime_light.png" width="100%">
+    </picture>
+  </a>
+</p>
+
+#### 3B. Pattern 4: Always-On On-Demand Baseline (`0s` Cold Start) + Elastic Spot / DWS Flex-Start Burst
+<p align="center">
+  <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_system1_architecture_explainer.html">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/arch2_pattern4_hybrid_dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="docs/assets/arch2_pattern4_hybrid_light.png">
+      <img alt="Pattern 4 Hybrid Always-On Baseline + Spot & DWS Flex-Start Burst" src="docs/assets/arch2_pattern4_hybrid_light.png" width="100%">
+    </picture>
+  </a>
+</p>
+
+#### 3C. 5-Stage System-1 Discrete Diffusion & Calibrated Hesitation Gate ($H(p)/\ln K \ge \tau$)
+<p align="center">
+  <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_system1_architecture_explainer.html">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/arch3_diffusion_pipeline_dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="docs/assets/arch3_diffusion_pipeline_light.png">
+      <img alt="5-Stage System-1 Discrete Diffusion & Calibrated Hesitation Cascade" src="docs/assets/arch3_diffusion_pipeline_light.png" width="100%">
+    </picture>
+  </a>
+</p>
+
+#### 3D. Verified GKE G4 Machine Family & Multi-Instance GPU Sharing Matrix (`17.53 GiB` NVFP4 Weights)
+
+| G4 Machine Type | GPU Slice / Hardware | GPU VRAM | System RAM | DGEM Replicas (`17.53 GiB` / pod) | Sharing / Isolation Mode | Recommended Enterprise Role |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`g4-standard-12`** | `1/4` RTX PRO 6000 vGPU *(or `1g.24gb` MIG)* | **24 GB** | 48 GB | **1 replica** (`~6.5 GB` KV cache) | Fractional vGPU or `1g.24gb` MIG | Dev/Test, CI validation, or ultra-low-cost micro-baseline (`4K` max context) |
+| **`g4-standard-24`** | `1/2` RTX PRO 6000 vGPU *(or `2g.48gb` MIG)* | **48 GB** | 96 GB | **1 replica** (`~30.5 GB` KV cache) *(2x tight)* | Fractional vGPU or `2g.48gb` MIG | **Pattern 4 Always-On Baseline (`0s` Cold Start)** at `~50%` of full-GPU On-Demand cost |
+| **`g4-standard-48`** | `1x` Full RTX PRO 6000 Blackwell (`SM120`) | **96 GB** | 192 GB | **1 replica** (Full GPU) or **2–3 replicas** (MPS / MIG) | **Single**, **2–3x MPS** (`1.4x–1.7x` QPS), or **2x `2g.48gb` MIG** | **High-Throughput Production & Spot/DWS Burst Pool** (`50–85+ SKUs/sec`) |
+| **`g4-standard-96`** | `2x` Full RTX PRO 6000 Blackwell | **192 GB** | 384 GB | **2–6 replicas** (`1–3` per GPU) | Multi-GPU Independent or MPS/MIG | High-density regional catalog enrichment hubs |
+| **`g4-standard-192`** | `4x` Full RTX PRO 6000 Blackwell | **384 GB** | 768 GB | **4–12 replicas** (`1–3` per GPU) | Multi-GPU Independent or MPS/MIG | Mega-batch catalog backfills (`200–340+ SKUs/sec` per node) |
+| **`g4-standard-384`** | `8x` Full RTX PRO 6000 Blackwell | **768 GB** | 1,536 GB | **8–24 replicas** (`1–3` per GPU) | Multi-GPU Independent or MPS/MIG | Multi-million SKU enterprise catalog ingestion |
+
+---
+
 # `dgem` on GKE with NVIDIA G4 GPUs: Enterprise Deployment & Retail Catalog Enrichment Bundle
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -34,7 +128,7 @@ Traditional autoregressive LLMs decode tokens sequentially ($O(N)$ forward passe
 
 ```text
 dgem/
-├── README.md                                           # Executive & Quickstart Guide (this file)
+├── README.md                                           # Visual Explainer Suite + Executive & Quickstart Guide (this file)
 ├── LICENSE                                             # Apache 2.0 License
 ├── CONTRIBUTING.md                                     # CLA & Contribution Guidelines
 ├── CODE_OF_CONDUCT.md                                  # Community Code of Conduct
@@ -43,9 +137,10 @@ dgem/
 ├── docs/
 │   ├── CUSTOMER_DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md   # Deep-dive GKE G4 Architecture, Security & Runbook
 │   ├── RETAIL_CATALOG_ENRICHMENT_GUIDE.md              # Retail Catalog Schemas, Calibration & Cascade Guide
-│   ├── dgem_system1_architecture_explainer.html        # Interactive Light/Dark Mode Google Cloud SVG Studio
-│   ├── dgem_bento_motion_explainer.html                # Bento Motion Studio #1: System-1 Diffusion & Cascade
-│   └── dgem_g4_scaling_bento_explainer.html            # Bento Motion Studio #2: G4 Sizing, MIG/MPS & Pattern 4
+│   ├── dgem_bento_motion_explainer.html                # Visual Studio Tab 1: System-1 Diffusion KPIs & Cascade
+│   ├── dgem_g4_scaling_bento_explainer.html            # Visual Studio Tab 2: G4 Sizing, MIG/MPS & Pattern 4
+│   ├── dgem_system1_architecture_explainer.html        # Visual Studio Tab 3: Full Architecture & Deployment Studio
+│   └── assets/                                         # Light & Dark mode high-DPI renders for GitHub README
 ├── terraform/
 │   ├── versions.tf                                     # Terraform >= 1.6 & google / google-beta >= 6.12
 │   ├── variables.tf                                    # Parameterized G4 shapes, Pattern 4 baseline/burst, MPS/MIG, T*
@@ -171,9 +266,9 @@ All Terraform modules, CLI scripts, and Kubernetes manifests enforce **Google Cl
 - **In-Repo Documentation & Interactive Visual Studios**:
   - [Customer Deployment & Architecture Guide](docs/CUSTOMER_DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md)
   - [Retail Product Catalog Enrichment Guide](docs/RETAIL_CATALOG_ENRICHMENT_GUIDE.md)
-  - [Interactive Visual Explainer & SVG Architecture Studio (`HTML`)](docs/dgem_system1_architecture_explainer.html)
-  - [Bento Motion Studio #1: System-1 Discrete Diffusion & Stage-2 Cascade (`HTML`)](docs/dgem_bento_motion_explainer.html)
-  - [Bento Motion Studio #2: GKE G4 Sizing, MIG/MPS GPU Sharing & Pattern 4 Hybrid Scaling (`HTML`)](docs/dgem_g4_scaling_bento_explainer.html)
+  - [Visual Studio Tab 1: System-1 Discrete Diffusion & Stage-2 Cascade (`HTML`)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_bento_motion_explainer.html)
+  - [Visual Studio Tab 2: GKE G4 Sizing, MIG/MPS GPU Sharing & Pattern 4 Hybrid Scaling (`HTML`)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_g4_scaling_bento_explainer.html)
+  - [Visual Studio Tab 3: Full Architecture & Deployment Studio (`HTML`)](https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_system1_architecture_explainer.html)
 - **Upstream Source Repository**:
   - [GoogleCloudPlatform/dgem on GitHub](https://github.com/GoogleCloudPlatform/dgem)
 - **Official Google Cloud Documentation**:

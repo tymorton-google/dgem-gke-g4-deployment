@@ -1,19 +1,4 @@
 <!DOCTYPE html>
-<!--
- Copyright 2026 Google LLC
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-     https://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
--->
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
@@ -57,6 +42,7 @@
       --hero-blue-dark: #1D4ED8;
       --hero-cyan-glint: #60A5FA;
       --hero-cyan-bright: #93C5FD;
+      --hero-text-accent: #2563EB;
 
       /* Typography */
       --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -89,6 +75,7 @@
       --text-secondary: #CBD5E1;
       --text-muted: #94A3B8;
       --neutral-slot: #334155;
+      --hero-text-accent: #60A5FA;
     }
 
     * {
@@ -141,7 +128,7 @@
       font-family: var(--font-mono);
       font-size: 11px;
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       padding-right: 8px;
       border-right: 1px solid var(--card-border-outer);
       white-space: nowrap;
@@ -325,7 +312,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.8px, 0.64vw, 10.8px);
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       background: rgba(37, 99, 235, 0.10);
       border: 1px solid rgba(37, 99, 235, 0.22);
       padding: 3px 8px;
@@ -387,7 +374,7 @@
     .hero-model-arch {
       font-size: clamp(10px, 0.80vw, 12.6px);
       font-weight: 600;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       letter-spacing: -0.01em;
       white-space: nowrap;
     }
@@ -475,7 +462,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.5px, 0.65vw, 10.5px);
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
@@ -516,7 +503,7 @@
 
     .c3-live-turn-num.bump {
       transform: translateY(-3px) scale(1.06);
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
     }
 
     .c3-progress-rail {
@@ -608,7 +595,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8px, 0.58vw, 9.6px);
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       background: rgba(37, 99, 235, 0.10);
       padding: 2px 7px;
       border-radius: 4px;
@@ -676,13 +663,13 @@
       justify-content: space-between;
       font-family: var(--font-mono);
       font-size: clamp(8px, 0.60vw, 9.8px);
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       white-space: nowrap;
     }
 
     .canvas-mask-tokens {
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
     }
 
     .slot-grid-2x2 {
@@ -720,7 +707,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.2px, 0.62vw, 10.2px);
       font-weight: 700;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       background: rgba(37, 99, 235, 0.11);
       padding: 1.5px 6px;
       border-radius: 4px;
@@ -808,7 +795,7 @@
       font-family: var(--font-mono);
       font-size: clamp(8.5px, 0.64vw, 10.4px);
       font-weight: 600;
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       background: rgba(37, 99, 235, 0.09);
       border: 1px solid rgba(37, 99, 235, 0.22);
       padding: 4px 11px;
@@ -918,7 +905,7 @@
     }
 
     .waffle-step-count.hero {
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
     }
 
     .waffle-grid-13x3 {
@@ -1006,7 +993,7 @@
     }
 
     .quant-gib-label.hero {
-      color: var(--hero-blue);
+      color: var(--hero-text-accent);
       font-weight: 700;
     }
 
@@ -1037,55 +1024,6 @@
       background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
       box-shadow: 0 1px 4px rgba(37, 99, 235, 0.28);
     }
-
-    /* ============================================================================
-       MINIMAL FLOATING DIRECTOR BAR (HIDDEN IN FULLSCREEN FOR CLEAN VIDEO CAPTURE)
-       ============================================================================ */
-    .director-hud {
-      position: fixed;
-      bottom: 10px;
-      right: 18px;
-      background: rgba(15, 23, 42, 0.86);
-      backdrop-filter: blur(10px);
-      color: #F8FAFC;
-      padding: 5px 12px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      font-weight: 600;
-      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
-      z-index: 100;
-    }
-
-    .hud-btn {
-      background: rgba(255, 255, 255, 0.12);
-      color: #F8FAFC;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 999px;
-      padding: 3px 9px;
-      font-size: 10.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s ease;
-    }
-
-    .hud-btn:hover {
-      background: rgba(255, 255, 255, 0.24);
-    }
-
-    .hud-clock {
-      font-family: var(--font-mono);
-      font-size: 10.5px;
-      color: #93C5FD;
-      min-width: 74px;
-      text-align: center;
-    }
-
-    :fullscreen .director-hud {
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -1094,11 +1032,14 @@
   <header class="top-suite-nav" aria-label="Decision Gemma Visual Suite Navigation">
     <div class="suite-nav-links">
       <span class="suite-nav-brand">DGEM · GKE G4 SUITE</span>
-      <a class="suite-nav-link" href="dgem_bento_motion_explainer.html">Bento 1: System-1 Diffusion KPIs</a>
-      <a class="suite-nav-link active" href="dgem_g4_scaling_bento_explainer.html">Bento 2: G4 Sizing, MIG/MPS &amp; Pattern 4</a>
-      <a class="suite-nav-link" href="dgem_system1_architecture_explainer.html">Full Architecture &amp; Deployment Studio</a>
+      <a class="suite-nav-link" href="dgem_bento_motion_explainer.html">1. System-1 Diffusion KPIs</a>
+      <a class="suite-nav-link active" href="dgem_g4_scaling_bento_explainer.html">2. G4 Sizing, MIG/MPS &amp; Pattern 4</a>
+      <a class="suite-nav-link" href="dgem_system1_architecture_explainer.html">3. Full Architecture &amp; Deployment Studio</a>
     </div>
-    <button class="theme-toggle-btn" id="themeToggleBtn" type="button">☀️ Studio Aluminum (Light)</button>
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button">
+      <span id="themeIcon">☀️</span>
+      <span id="themeLabel">Light Mode</span>
+    </button>
   </header>
 
   <main class="stage-wrapper" id="bentoStage">
@@ -1250,7 +1191,7 @@
               <polygon points="42,39 76,54 76,144 42,129" fill="url(#heroBarLeft)"/>
               <polygon points="54,44 65,49 65,139 54,134" fill="url(#cyanGlintStripe)"/>
               <polygon points="76,54 110,39 110,129 76,144" fill="url(#heroBarRight)"/>
-              <text x="76" y="16" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="13" fill="#2563EB">48 SKUs/s</text>
+              <text x="76" y="16" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="13" fill="var(--hero-text-accent)">48 SKUs/s</text>
             </g>
 
             <!-- BASELINE 3D ISOMETRIC PRISM (Center x=204) -->
@@ -1258,15 +1199,15 @@
               <polygon points="204,76 236,90 204,104 172,90" fill="#E2E8F0" stroke="#F8FAFC" stroke-width="0.9"/>
               <polygon points="172,90 204,104 204,144 172,130" fill="#CBD5E1"/>
               <polygon points="204,104 236,90 236,130 204,144" fill="#94A3B8"/>
-              <text x="204" y="67" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="#64748B">30 SKUs/s</text>
+              <text x="204" y="67" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="var(--text-secondary)">30 SKUs/s</text>
             </g>
 
             <!-- Two-Line Non-Overlapping Base Labels (128px center-to-center distance) -->
-            <text x="76" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="11.2" fill="#1B2028">2–3× NVIDIA MPS</text>
-            <text x="76" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.5" fill="#2563EB">CPU/GPU Pipelined</text>
+            <text x="76" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="11.2" fill="var(--text-ink)">2–3× NVIDIA MPS</text>
+            <text x="76" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.5" fill="var(--hero-text-accent)">CPU/GPU Pipelined</text>
 
-            <text x="204" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="11.2" fill="#5A6577">1× Single Engine</text>
-            <text x="204" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="500" font-size="9.5" fill="#7B8698">Un-Pipelined GIL</text>
+            <text x="204" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="11.2" fill="var(--text-secondary)">1× Single Engine</text>
+            <text x="204" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="500" font-size="9.5" fill="var(--text-muted)">Un-Pipelined GIL</text>
           </svg>
         </div>
       </section>
@@ -1458,20 +1399,20 @@
             <!-- Leader Line 1: Full 96 GB Tank / Top MPS Tier (y=36) -->
             <circle cx="126" cy="36" r="2.8" fill="#475569"/>
             <line x1="126" y1="36" x2="144" y2="36" stroke="#64748B" stroke-width="1.2"/>
-            <text x="148" y="33" font-family="Inter, sans-serif" font-weight="700" font-size="10.0" fill="#1B2028">g4-standard-48 (96 GB)</text>
-            <text x="148" y="46" font-family="Inter, sans-serif" font-weight="500" font-size="9.0" fill="#5A6577">Full GPU: 2–3× MPS / MIG</text>
+            <text x="148" y="33" font-family="Inter, sans-serif" font-weight="700" font-size="10.0" fill="var(--text-ink)">g4-standard-48 (96 GB)</text>
+            <text x="148" y="46" font-family="Inter, sans-serif" font-weight="500" font-size="9.0" fill="var(--text-secondary)">Full GPU: 2–3× MPS / MIG</text>
 
             <!-- Leader Line 2: Middle 48 GB Tier (y=97) -->
             <circle cx="126" cy="97" r="2.8" fill="#3B82F6"/>
             <line x1="126" y1="97" x2="144" y2="97" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="2 2"/>
-            <text x="148" y="94" font-family="Inter, sans-serif" font-weight="700" font-size="10.0" fill="#1B2028">g4-standard-24 (48 GB)</text>
-            <text x="148" y="107" font-family="Inter, sans-serif" font-weight="500" font-size="9.0" fill="#5A6577">1/2 vGPU or 2g.48gb MIG</text>
+            <text x="148" y="94" font-family="Inter, sans-serif" font-weight="700" font-size="10.0" fill="var(--text-ink)">g4-standard-24 (48 GB)</text>
+            <text x="148" y="107" font-family="Inter, sans-serif" font-weight="500" font-size="9.0" fill="var(--text-secondary)">1/2 vGPU or 2g.48gb MIG</text>
 
             <!-- Leader Line 3: Bottom 24 GB Tier (y=132) -->
             <circle cx="126" cy="132" r="3" fill="#2563EB"/>
             <line x1="126" y1="132" x2="144" y2="132" stroke="#2563EB" stroke-width="1.4"/>
-            <text x="148" y="129" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="10.0" fill="#2563EB">g4-standard-12 (24 GB)</text>
-            <text x="148" y="142" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.0" fill="#2563EB">1/4 vGPU or 1g.24gb MIG</text>
+            <text x="148" y="129" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="10.0" fill="var(--hero-text-accent)">g4-standard-12 (24 GB)</text>
+            <text x="148" y="142" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.0" fill="var(--hero-text-accent)">1/4 vGPU or 1g.24gb MIG</text>
           </svg>
         </div>
       </section>
@@ -1586,34 +1527,8 @@
     </div>
   </main>
 
-  <!-- Subtle Floating Playback Scrubber Bar (Auto-Hides in Fullscreen) -->
-  <nav class="director-hud" aria-label="Animation Playback Controls">
-    <button class="hud-btn" id="btnPlayPause" type="button">Pause</button>
-    <button class="hud-btn" id="btnRestart" type="button">Restart 0:00</button>
-    <span class="hud-clock" id="hudClock">04.2s / 15.0s</span>
-    <button class="hud-btn" id="btnFullscreen" type="button">Fullscreen</button>
-  </nav>
-
   <script>
-    // Synchronized Light / Dark Studio Theme Toggle (Defaults to 'light')
-    (function initTheme() {
-      const saved = localStorage.getItem('dgem-theme') || 'light';
-      document.documentElement.setAttribute('data-theme', saved);
-      const btn = document.getElementById('themeToggleBtn');
-      function updateLabel(t) {
-        btn.textContent = t === 'dark' ? '🌙 Dark Slate' : '☀️ Studio Aluminum (Light)';
-      }
-      updateLabel(saved);
-      btn.addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-        const next = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('dgem-theme', next);
-        updateLabel(next);
-      });
-    })();
-
-    const BENTO_TOPIC_CONFIG = {
+    const TOPIC_CONFIG = {
       topicName: "GKE G4 Fleet",
       topicTag: "G4 · RTX PRO 6000",
       durationSec: 15.0,
@@ -1705,10 +1620,7 @@
     const entropyReadout = document.getElementById('entropyReadout');
     const baseStepLabel = document.getElementById('baseStepLabel');
     const q4CompressWrap = document.getElementById('q4CompressWrap');
-    const hudClock = document.getElementById('hudClock');
-    const btnPlayPause = document.getElementById('btnPlayPause');
 
-    let isPlaying = true;
     let elapsedSec = 4.2;
     let lastTimestamp = null;
     let lastTurnIndex = -1;
@@ -1738,21 +1650,16 @@
       const dt = Math.max(0, (now - lastTimestamp) / 1000);
       lastTimestamp = now;
 
-      if (isPlaying) {
-        elapsedSec += dt;
-        if (elapsedSec > BENTO_TOPIC_CONFIG.durationSec) {
-          triggerSequenceStart(true);
-        }
+      elapsedSec += dt;
+      if (elapsedSec > TOPIC_CONFIG.durationSec) {
+        triggerSequenceStart(true);
       }
 
       const safeSec = Math.max(0, elapsedSec);
 
-      // 1. Update HUD Clock
-      hudClock.textContent = `${safeSec.toFixed(1).padStart(4, '0')}s / 15.0s`;
-
-      // 2. Card 3: Real-Time Cycle Progress & Active Pod Counter (3.1s per cycle)
-      const turnIndex = Math.max(0, Math.floor(safeSec / BENTO_TOPIC_CONFIG.turnCycleSec));
-      const cycleProgress = (safeSec % BENTO_TOPIC_CONFIG.turnCycleSec) / BENTO_TOPIC_CONFIG.turnCycleSec;
+      // 1. Card 3: Real-Time Cycle Progress & Active Pod Counter (3.1s per cycle)
+      const turnIndex = Math.max(0, Math.floor(safeSec / TOPIC_CONFIG.turnCycleSec));
+      const cycleProgress = (safeSec % TOPIC_CONFIG.turnCycleSec) / TOPIC_CONFIG.turnCycleSec;
       const pct = Math.max(6, Math.min(100, cycleProgress * 100));
 
       liveProgressBar.style.width = `${pct.toFixed(1)}%`;
@@ -1767,7 +1674,7 @@
 
       if (turnIndex !== lastTurnIndex) {
         lastTurnIndex = turnIndex;
-        const sample = BENTO_TOPIC_CONFIG.useCaseSamples[turnIndex % BENTO_TOPIC_CONFIG.useCaseSamples.length];
+        const sample = TOPIC_CONFIG.useCaseSamples[turnIndex % TOPIC_CONFIG.useCaseSamples.length];
         liveTurnCounter.textContent = String(sample.pods);
         liveTurnCounter.classList.add('bump');
         setTimeout(() => liveTurnCounter.classList.remove('bump'), 200);
@@ -1780,7 +1687,7 @@
         entropyReadout.innerHTML = sample.sla;
       }
 
-      // 3. Card 6: Waffle Grid Cold-Start Recovery Race
+      // 2. Card 6: Waffle Grid Cold-Start Recovery Race
       const heroActiveSlots = safeSec >= 0.25 ? 4 : Math.max(1, Math.floor((safeSec / 0.25) * 4));
       for (let i = 0; i < 39; i++) {
         if (i < heroActiveSlots) {
@@ -1790,7 +1697,7 @@
         }
       }
 
-      const baseActiveCount = Math.min(31, 6 + Math.floor((safeSec / BENTO_TOPIC_CONFIG.durationSec) * 25));
+      const baseActiveCount = Math.min(31, 6 + Math.floor((safeSec / TOPIC_CONFIG.durationSec) * 25));
       baseStepLabel.textContent = `180s Pull (${baseActiveCount}/39)`;
       for (let i = 0; i < 39; i++) {
         if (i < baseActiveCount) {
@@ -1803,40 +1710,58 @@
       requestAnimationFrame(updateFrame);
     }
 
-    btnPlayPause.addEventListener('click', () => {
-      isPlaying = !isPlaying;
-      btnPlayPause.textContent = isPlaying ? 'Pause' : 'Play';
-    });
-
-    document.getElementById('btnRestart').addEventListener('click', () => {
-      isPlaying = true;
-      btnPlayPause.textContent = 'Pause';
-      triggerSequenceStart(true);
-    });
-
-    document.getElementById('btnFullscreen').addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-      } else {
-        document.exitFullscreen();
-      }
-    });
-
     if (window.self !== window.top || window.location.search.includes('embed=1')) {
       document.documentElement.classList.add('embedded-mode');
     }
 
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'dgem-theme' && e.newValue) {
-        document.documentElement.setAttribute('data-theme', e.newValue);
-        const icon = document.getElementById('themeIcon');
-        const label = document.getElementById('themeLabel');
-        if (icon && label) {
-          icon.textContent = e.newValue === 'dark' ? '🌙' : '☀️';
-          label.textContent = e.newValue === 'dark' ? 'Slate Dark' : 'Studio Aluminum (Light)';
+    // Synchronized Theme Toggle across the 3-page Visual Explainer Suite
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (themeIcon && themeLabel) {
+        if (theme === 'dark') {
+          themeIcon.textContent = '🌙';
+          themeLabel.textContent = 'Dark Mode';
+        } else {
+          themeIcon.textContent = '☀️';
+          themeLabel.textContent = 'Light Mode';
         }
       }
+    }
+
+    function initTheme() {
+      const paramTheme = new URLSearchParams(window.location.search).get('theme');
+      let parentTheme = null;
+      try {
+        if (window.self !== window.top && window.parent.document && window.parent.document.documentElement) {
+          parentTheme = window.parent.document.documentElement.getAttribute('data-theme');
+        }
+      } catch (e) {}
+      const saved = (paramTheme === 'dark' || paramTheme === 'light')
+        ? paramTheme
+        : ((parentTheme === 'dark' || parentTheme === 'light') ? parentTheme : (localStorage.getItem('dgem-theme') || 'light'));
+      applyTheme(saved);
+    }
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'light' ? 'dark' : 'light';
+        localStorage.setItem('dgem-theme', next);
+        applyTheme(next);
+      });
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'dgem-theme' && e.newValue) {
+        applyTheme(e.newValue);
+      }
     });
+
+    initTheme();
 
     triggerSequenceStart(false);
     requestAnimationFrame(updateFrame);
