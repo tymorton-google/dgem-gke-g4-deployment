@@ -565,3 +565,15 @@ if __name__ == "__main__":
    - At $\tau = 0.16$, `~75%` of catalog slots resolve in Stage 1 (`57 ms` p50) with `99.7%–100.0%` calibrated accuracy, while borderline multi-category or title-vs-spec conflict slots escalate surgically to `gemini-3.5-flash-lite` with `stage2_prior: "soft"`.
 3. **Run Online Storefront Ingestion on `g4-spot-faststart` + Offline Backfills on `g4-dws-flex`**:
    - Use `ComputeClass/dgem-g4-priority` (`02-compute-class.yaml`) for real-time merchant uploads and `06-dws-flex-workload.yaml` (`DWS Flex-Start`) for multi-million SKU taxonomy migrations.
+
+---
+
+## Contributing & License
+
+See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contributor license agreement (CLA) requirements and community guidelines, and [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md) for our Code of Conduct. This project is licensed under the [Apache-2.0 License](../LICENSE).
+
+## Disclaimer
+
+> [!CAUTION]
+> This is **not** an officially supported Google product. This repository provides reference architecture blueprints, sample deployment automation, and synthetic demonstration datasets; it is not intended as turnkey production code without organization-specific security and operational review.
+> This project is not eligible for the [Google Open Source Software Vulnerability Rewards Program](https://bughunters.google.com/open-source-security).

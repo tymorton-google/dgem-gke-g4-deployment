@@ -359,3 +359,15 @@ curl -s -X POST "http://127.0.0.1:8090/api/decide/support_triage" \
 - **Vertex AI Stage 2 Cascade & Enterprise Security**:
   - [Gemini 3.5 Flash-Lite on Vertex AI (`gemini-3.5-flash-lite`)](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-5-flash-lite)
   - [Authenticate to Google Cloud APIs from GKE workloads using Workload Identity Federation](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity)
+
+---
+
+## Contributing & License
+
+See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contributor license agreement (CLA) requirements and community guidelines, and [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md) for our Code of Conduct. This project is licensed under the [Apache-2.0 License](../LICENSE).
+
+## Disclaimer
+
+> [!CAUTION]
+> This is **not** an officially supported Google product. This repository provides reference architecture blueprints, sample deployment automation, and synthetic demonstration datasets; it is not intended as turnkey production code without organization-specific security and operational review.
+> This project is not eligible for the [Google Open Source Software Vulnerability Rewards Program](https://bughunters.google.com/open-source-security).

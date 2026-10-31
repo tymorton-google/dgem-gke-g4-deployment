@@ -36,6 +36,9 @@ Traditional autoregressive LLMs decode tokens sequentially ($O(N)$ forward passe
 dgem/
 ├── README.md                                           # Executive & Quickstart Guide (this file)
 ├── LICENSE                                             # Apache 2.0 License
+├── CONTRIBUTING.md                                     # CLA & Contribution Guidelines
+├── CODE_OF_CONDUCT.md                                  # Community Code of Conduct
+├── SECURITY.md                                         # Security Vulnerability Reporting Policy
 ├── .gitignore                                          # Terraform, Python, and Kubernetes ignore rules
 ├── docs/
 │   ├── CUSTOMER_DEPLOYMENT_AND_ARCHITECTURE_GUIDE.md   # Deep-dive GKE G4 Architecture, Security & Runbook
@@ -183,3 +186,19 @@ All Terraform modules, CLI scripts, and Kubernetes manifests enforce **Google Cl
   - [Accelerate AI/ML Weight Loading with Hyperdisk ML on GKE](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/hyperdisk-ml)
   - [GKE Pod Snapshots (`podsnapshot.gke.io/v1`)](https://cloud.google.com/kubernetes-engine/docs/concepts/pod-snapshots)
   - [Vertex AI Gemini 3.5 Flash-Lite Documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/models)
+
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contributor license agreement (CLA) requirements and community guidelines, and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for our Code of Conduct. If you encounter a bug or have feedback on templates or evaluation tools, please open an [Issue](https://github.com/GoogleCloudPlatform/dgem/issues).
+
+## License
+
+This project is licensed under the [Apache-2.0 License](LICENSE).
+
+## Disclaimer
+
+> [!CAUTION]
+> This is **not** an officially supported Google product. This repository provides reference architecture blueprints, sample deployment automation, and synthetic demonstration datasets; it is not intended as turnkey production code without organization-specific security and operational review.
+> This project is not eligible for the [Google Open Source Software Vulnerability Rewards Program](https://bughunters.google.com/open-source-security).
