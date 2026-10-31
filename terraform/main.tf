@@ -1,5 +1,5 @@
 # ==============================================================================
-# 1. Enable Required Google Cloud APIs
+# 1. Enable Required Google Cloud APIs & Define G4 Hardware / Pattern Locals
 # ==============================================================================
 locals {
   required_apis = [
@@ -7,12 +7,66 @@ locals {
     "container.googleapis.com",
     "aiplatform.googleapis.com",
     "artifactregistry.googleapis.com",
-    "cloudbuild.googleapis.com",
     "storage.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "secretmanager.googleapis.com",
   ]
+
+  # Official GKE G4 accelerator count mapping per machine type
+  # Verified against https://docs.cloud.google.com/ai-hypercomputer/docs/create/gke-create-g2-g4:
+  # Fractional vGPU shapes (g4-standard-12, g4-standard-24) and single-GPU g4-standard-48 all require count = 1.
+  g4_gpu_count_by_shape = {
+    "g4-standard-12"  = 1 # 1/4 vGPU (24 GB GDDR7), 12 vCPUs, 48 GB RAM
+    "g4-standard-24"  = 1 # 1/2 vGPU (48 GB GDDR7), 24 vCPUs, 96 GB RAM
+    "g4-standard-48"  = 1 # 1x full GPU (96 GB GDDR7), 48 vCPUs, 180 GB RAM
+    "g4-standard-96"  = 2 # 2x full GPUs (192 GB GDDR7), 96 vCPUs, 360 GB RAM
+    "g4-standard-192" = 4 # 4x full GPUs (384 GB GDDR7), 192 vCPUs, 720 GB RAM
+    "g4-standard-384" = 8 # 8x full GPUs (768 GB GDDR7), 384 vCPUs, 1,440 GB RAM
+  }
+
+  fractional_g4_shapes = [
+    "g4-standard-6",
+    "g4-standard-12",
+    "g4-standard-24",
+  ]
+
+  # Effective pool enablement and baseline sizing derived from deployment_pattern
+  enable_spot_pool_effective = (
+    var.deployment_pattern == "ondemand_only" || var.deployment_pattern == "dws_flex_batch"
+    ? false
+    : var.enable_spot_pool
+  )
+
+  enable_dws_flex_pool_effective = (
+    var.deployment_pattern == "ondemand_only"
+    ? false
+    : var.enable_dws_flex_pool
+  )
+
+  enable_ondemand_pool_effective = (
+    var.deployment_pattern == "dws_flex_batch"
+    ? false
+    : var.enable_ondemand_pool
+  )
+
+  # Pattern 4 (hybrid_baseline_plus_burst) and Pattern 3 (ondemand_only) enforce >=1 always-on On-Demand node
+  ondemand_initial_nodes_effective = (
+    var.deployment_pattern == "hybrid_baseline_plus_burst" || var.deployment_pattern == "ondemand_only"
+    ? max(1, var.ondemand_min_nodes)
+    : 0
+  )
+
+  ondemand_min_nodes_effective = (
+    var.deployment_pattern == "hybrid_baseline_plus_burst" || var.deployment_pattern == "ondemand_only"
+    ? max(1, var.ondemand_min_nodes)
+    : var.ondemand_min_nodes
+  )
+
+  ondemand_max_nodes_effective = max(local.ondemand_min_nodes_effective, var.ondemand_max_nodes)
+
+  baseline_gpu_count = lookup(local.g4_gpu_count_by_shape, var.baseline_g4_machine_type, var.g4_gpu_count)
+  burst_gpu_count    = lookup(local.g4_gpu_count_by_shape, var.burst_g4_machine_type, var.g4_gpu_count)
 }
 
 resource "google_project_service" "apis" {
@@ -29,10 +83,7 @@ data "google_project" "current" {
 
 # ==============================================================================
 # 2. Custom VPC Network, Private Subnet & Cloud NAT
-#    Google Cloud Production Enterprise Security Best Practices:
-#    - Satisfies constraints/compute.vmExternalIpAccess (zero public node IPs)
-#    - Satisfies constraints/compute.skipDefaultNetworkCreation
-#    - Enables Private Google Access for zero-egress-cost GCS & Artifact Registry
+#    (Complies with compute.vmExternalIpAccess & compute.skipDefaultNetworkCreation)
 # ==============================================================================
 resource "google_compute_network" "dgem_vpc" {
   name                    = "${var.cluster_name}-vpc"
@@ -75,8 +126,6 @@ resource "google_compute_router_nat" "dgem_nat" {
 
 # ==============================================================================
 # 3. Artifact Registry & GCS Buckets (Weights + HNS Pod Snapshot Bucket)
-#    Google Cloud Production Enterprise Security Best Practices:
-#    - Enforces uniform_bucket_level_access (constraints/storage.uniformBucketLevelAccess)
 # ==============================================================================
 resource "google_artifact_registry_repository" "dgem_repo" {
   location      = var.region
@@ -86,7 +135,7 @@ resource "google_artifact_registry_repository" "dgem_repo" {
   depends_on    = [google_project_service.apis]
 }
 
-# Model Weights, FlashInfer Blackwell SM120 JIT Cache, and Calibration Receipts Bucket
+# Model Weights, FlashInfer JIT Cache, and Domain Calibration Receipts Bucket
 resource "google_storage_bucket" "dgem_weights" {
   name                        = "${var.project_id}-dgem-weights"
   location                    = var.region
@@ -101,7 +150,6 @@ resource "google_storage_bucket" "dgem_weights" {
 }
 
 # GKE Pod Snapshots Bucket (Requires Hierarchical Namespace + Uniform Access + Soft Delete = 0)
-# Reference: https://cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots-prepare
 resource "google_storage_bucket" "dgem_pod_snapshots" {
   provider                    = google-beta
   name                        = "${var.project_id}-dgem-pod-snapshots"
@@ -130,10 +178,7 @@ resource "google_storage_bucket" "dgem_pod_snapshots" {
 }
 
 # ==============================================================================
-# 4. Least-Privilege Service Accounts & Keyless Workload Identity Federation
-#    Google Cloud Production Enterprise Security Best Practices:
-#    - Complies with constraints/iam.disableServiceAccountKeyCreation (zero exported JSON keys)
-#    - Uses GKE Workload Identity Federation (svc.id.goog) for pod-level IAM
+# 4. Least-Privilege Service Accounts & Workload Identity IAM
 # ==============================================================================
 
 # 4a. GKE Node Pool Service Account
@@ -162,7 +207,7 @@ resource "google_storage_bucket_iam_member" "node_sa_weights_reader" {
 }
 
 # Required for GKE Pod Snapshots (node SA, workload SA, and GKE service agent)
-# Reference: https://cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots-prepare
+# Verified against https://docs.cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots-prepare
 resource "google_storage_bucket_iam_member" "node_sa_snapshot_admin" {
   for_each = toset([
     "roles/storage.bucketViewer",
@@ -235,11 +280,7 @@ resource "google_service_account_iam_member" "gateway_wi_binding" {
 }
 
 # ==============================================================================
-# 5. GKE Standard Cluster (G4 Ready, Image Streaming, Workload Identity, GCS FUSE)
-#    Google Cloud Production Enterprise Security Best Practices:
-#    - enable_private_nodes = true (nodes have RFC 1918 private IPs only)
-#    - enable_shielded_nodes = true (constraints/compute.requireShieldedVm)
-#    - workload_identity_config enabled for keyless pod authentication
+# 5. GKE Standard Cluster (G4 Ready, 1.35.8-gke.1518000+, Image Streaming, WI)
 # ==============================================================================
 resource "google_container_cluster" "dgem_cluster" {
   provider       = google-beta
@@ -326,18 +367,30 @@ resource "google_container_node_pool" "system_cpu_pool" {
 }
 
 # ==============================================================================
-# 6A. Option 1: GKE Spot Node Pool with G4 GPUs + Fast Start
-#     - Machine: g4-standard-48 (1x nvidia-rtx-pro-6000 96GB GDDR7, 48 vCPU, 180GB RAM)
-#     - Fast Start: Image Streaming (GCFS) + Secondary Boot Disk (CONTAINER_IMAGE_CACHE)
-#                   + Hyperdisk Balanced boot disk (G4 requires Hyperdisk)
+# 6A. Option 1 / Burst Priority 1: GKE Spot Node Pool with G4 GPUs + Fast Start
+#     - Machine: var.burst_g4_machine_type (default g4-standard-48: 1x RTX PRO 6000 96GB)
+#     - Fast Start: Image Streaming (GCFS) + Secondary Boot Disk (Container/Weight Cache)
+#                   + Hyperdisk Balanced (no Local SSDs by default for Fast-Starting Nodes)
+#     - Optional GPU Sharing: NVIDIA MPS (2 or 3 clients/GPU) or MIG (2g.48gb / 1g.24gb)
 # ==============================================================================
 resource "google_container_node_pool" "g4_spot" {
-  count          = var.enable_spot_pool ? 1 : 0
+  count          = local.enable_spot_pool_effective ? 1 : 0
   provider       = google-beta
   name           = "g4-spot-faststart"
   location       = var.region
   cluster        = google_container_cluster.dgem_cluster.name
   node_locations = var.zones
+
+  lifecycle {
+    precondition {
+      condition     = !(var.gpu_sharing_strategy == "mps" && contains(local.fractional_g4_shapes, var.burst_g4_machine_type))
+      error_message = "GKE does not allow NVIDIA MPS (gpu_sharing_strategy = \"mps\") on fractional <1 GPU G4 machine types (g4-standard-6, g4-standard-12, g4-standard-24). Use g4-standard-48 or larger for burst_g4_machine_type."
+    }
+    precondition {
+      condition     = !(var.gpu_sharing_strategy == "mig" && contains(local.fractional_g4_shapes, var.burst_g4_machine_type))
+      error_message = "GKE does not allow Multi-Instance GPU (gpu_sharing_strategy = \"mig\") on fractional <1 GPU G4 machine types (g4-standard-6, g4-standard-12, g4-standard-24). Use g4-standard-48 or larger for burst_g4_machine_type."
+    }
+  }
 
   autoscaling {
     total_min_node_count = 0
@@ -351,7 +404,7 @@ resource "google_container_node_pool" "g4_spot" {
   }
 
   node_config {
-    machine_type    = var.g4_machine_type
+    machine_type    = var.burst_g4_machine_type
     spot            = true
     image_type      = "COS_CONTAINERD"
     disk_type       = "hyperdisk-balanced"
@@ -360,10 +413,20 @@ resource "google_container_node_pool" "g4_spot" {
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
 
     guest_accelerator {
-      type  = var.g4_gpu_type
-      count = var.g4_gpu_count
+      type               = var.g4_gpu_type
+      count              = local.burst_gpu_count
+      gpu_partition_size = var.gpu_sharing_strategy == "mig" ? var.mig_partition_size : null
+
       gpu_driver_installation_config {
         gpu_driver_version = "LATEST"
+      }
+
+      dynamic "gpu_sharing_config" {
+        for_each = var.gpu_sharing_strategy == "mps" ? [1] : []
+        content {
+          gpu_sharing_strategy       = "MPS"
+          max_shared_clients_per_gpu = var.mps_max_shared_clients
+        }
       }
     }
 
@@ -382,7 +445,7 @@ resource "google_container_node_pool" "g4_spot" {
       }
     }
 
-    # Attach pre-hydrated Secondary Boot Disk when generated by scripts/generate_fast_start_snapshots.sh
+    # Attach pre-hydrated Secondary Boot Disk when generated by generate_fast_start_snapshots.sh
     dynamic "secondary_boot_disks" {
       for_each = var.secondary_boot_disk_image != "" ? [var.secondary_boot_disk_image] : []
       content {
@@ -403,6 +466,8 @@ resource "google_container_node_pool" "g4_spot" {
     labels = {
       "dgem.cloud.google.com/role"         = "gpu-engine"
       "dgem.cloud.google.com/provisioning" = "spot"
+      "dgem.cloud.google.com/pool-role"    = "elastic-burst"
+      "dgem.cloud.google.com/gpu-sharing"  = var.gpu_sharing_strategy
       "cloud.google.com/compute-class"     = "dgem-g4-priority"
     }
 
@@ -421,17 +486,28 @@ resource "google_container_node_pool" "g4_spot" {
 }
 
 # ==============================================================================
-# 6B. Option 2: DWS Flex-Start Node Pool with G4 GPUs (Queued Provisioning)
+# 6B. Option 2 / Burst Priority 2: DWS Flex-Start Node Pool with G4 GPUs
 #     - Uses Dynamic Workload Scheduler (DWS) Flex-Start to queue and allocate
 #       discount G4 GPUs for up to 7 days with non-preemptible duration guarantees
 # ==============================================================================
 resource "google_container_node_pool" "g4_dws_flex" {
-  count          = var.enable_dws_flex_pool ? 1 : 0
+  count          = local.enable_dws_flex_pool_effective ? 1 : 0
   provider       = google-beta
   name           = "g4-dws-flex"
   location       = var.region
   cluster        = google_container_cluster.dgem_cluster.name
   node_locations = var.zones
+
+  lifecycle {
+    precondition {
+      condition     = !(var.gpu_sharing_strategy == "mps" && contains(local.fractional_g4_shapes, var.burst_g4_machine_type))
+      error_message = "GKE does not allow NVIDIA MPS (gpu_sharing_strategy = \"mps\") on fractional <1 GPU G4 machine types (g4-standard-6, g4-standard-12, g4-standard-24). Use g4-standard-48 or larger for burst_g4_machine_type."
+    }
+    precondition {
+      condition     = !(var.gpu_sharing_strategy == "mig" && contains(local.fractional_g4_shapes, var.burst_g4_machine_type))
+      error_message = "GKE does not allow Multi-Instance GPU (gpu_sharing_strategy = \"mig\") on fractional <1 GPU G4 machine types (g4-standard-6, g4-standard-12, g4-standard-24). Use g4-standard-48 or larger for burst_g4_machine_type."
+    }
+  }
 
   initial_node_count = 0
 
@@ -452,7 +528,7 @@ resource "google_container_node_pool" "g4_dws_flex" {
   }
 
   node_config {
-    machine_type    = var.g4_machine_type
+    machine_type    = var.burst_g4_machine_type
     flex_start      = true
     image_type      = "COS_CONTAINERD"
     disk_type       = "hyperdisk-balanced"
@@ -461,10 +537,20 @@ resource "google_container_node_pool" "g4_dws_flex" {
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
 
     guest_accelerator {
-      type  = var.g4_gpu_type
-      count = var.g4_gpu_count
+      type               = var.g4_gpu_type
+      count              = local.burst_gpu_count
+      gpu_partition_size = var.gpu_sharing_strategy == "mig" ? var.mig_partition_size : null
+
       gpu_driver_installation_config {
         gpu_driver_version = "LATEST"
+      }
+
+      dynamic "gpu_sharing_config" {
+        for_each = var.gpu_sharing_strategy == "mps" ? [1] : []
+        content {
+          gpu_sharing_strategy       = "MPS"
+          max_shared_clients_per_gpu = var.mps_max_shared_clients
+        }
       }
     }
 
@@ -501,6 +587,8 @@ resource "google_container_node_pool" "g4_dws_flex" {
     labels = {
       "dgem.cloud.google.com/role"         = "gpu-engine"
       "dgem.cloud.google.com/provisioning" = "dws-flex"
+      "dgem.cloud.google.com/pool-role"    = "elastic-burst"
+      "dgem.cloud.google.com/gpu-sharing"  = var.gpu_sharing_strategy
       "cloud.google.com/compute-class"     = "dgem-g4-priority"
     }
 
@@ -525,21 +613,38 @@ resource "google_container_node_pool" "g4_dws_flex" {
 }
 
 # ==============================================================================
-# 6C. Option 3: On-Demand Node Pool with G4 GPUs
-#     - Guaranteed baseline capacity or ComputeClass fallback when Spot is preempted
-#     - Eligible for GKE Fast-Starting Nodes (hyperdisk-balanced + zero Local SSDs)
+# 6C. Option 3 / Pattern 4 Always-On Baseline: On-Demand Node Pool with G4 GPUs
+#     - When deployment_pattern == "hybrid_baseline_plus_burst", sets
+#       initial_node_count >= 1 & total_min_node_count >= 1 and labels nodes with
+#       "dgem.cloud.google.com/pool-role" = "baseline-ondemand" so the model is
+#       100% always available with zero cold-start delay.
+#     - Can use a cost-optimized fractional vGPU shape (g4-standard-24 48GB at
+#       ~50% lower On-Demand cost) or a full GPU shape (g4-standard-48 96GB).
 # ==============================================================================
 resource "google_container_node_pool" "g4_ondemand" {
-  count          = var.enable_ondemand_pool ? 1 : 0
+  count          = local.enable_ondemand_pool_effective ? 1 : 0
   provider       = google-beta
   name           = "g4-ondemand"
   location       = var.region
   cluster        = google_container_cluster.dgem_cluster.name
   node_locations = var.zones
 
+  lifecycle {
+    precondition {
+      condition     = !(var.gpu_sharing_strategy == "mps" && contains(local.fractional_g4_shapes, var.baseline_g4_machine_type))
+      error_message = "GKE does not allow NVIDIA MPS (gpu_sharing_strategy = \"mps\") on fractional <1 GPU G4 machine types (g4-standard-6, g4-standard-12, g4-standard-24). Set baseline_g4_machine_type = \"g4-standard-48\" (or larger) when using MPS, or set gpu_sharing_strategy = \"none\"."
+    }
+    precondition {
+      condition     = !(var.gpu_sharing_strategy == "mig" && contains(local.fractional_g4_shapes, var.baseline_g4_machine_type))
+      error_message = "GKE does not allow Multi-Instance GPU (gpu_sharing_strategy = \"mig\") on fractional <1 GPU G4 machine types (g4-standard-6, g4-standard-12, g4-standard-24). Set baseline_g4_machine_type = \"g4-standard-48\" (or larger) when using MIG, or set gpu_sharing_strategy = \"none\"."
+    }
+  }
+
+  initial_node_count = local.ondemand_initial_nodes_effective
+
   autoscaling {
-    total_min_node_count = var.ondemand_min_nodes
-    total_max_node_count = var.ondemand_max_nodes
+    total_min_node_count = local.ondemand_min_nodes_effective
+    total_max_node_count = local.ondemand_max_nodes_effective
     location_policy      = "ANY"
   }
 
@@ -549,7 +654,7 @@ resource "google_container_node_pool" "g4_ondemand" {
   }
 
   node_config {
-    machine_type    = var.g4_machine_type
+    machine_type    = var.baseline_g4_machine_type
     spot            = false
     image_type      = "COS_CONTAINERD"
     disk_type       = "hyperdisk-balanced"
@@ -558,10 +663,20 @@ resource "google_container_node_pool" "g4_ondemand" {
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
 
     guest_accelerator {
-      type  = var.g4_gpu_type
-      count = var.g4_gpu_count
+      type               = var.g4_gpu_type
+      count              = local.baseline_gpu_count
+      gpu_partition_size = var.gpu_sharing_strategy == "mig" ? var.mig_partition_size : null
+
       gpu_driver_installation_config {
         gpu_driver_version = "LATEST"
+      }
+
+      dynamic "gpu_sharing_config" {
+        for_each = var.gpu_sharing_strategy == "mps" ? [1] : []
+        content {
+          gpu_sharing_strategy       = "MPS"
+          max_shared_clients_per_gpu = var.mps_max_shared_clients
+        }
       }
     }
 
@@ -598,6 +713,8 @@ resource "google_container_node_pool" "g4_ondemand" {
     labels = {
       "dgem.cloud.google.com/role"         = "gpu-engine"
       "dgem.cloud.google.com/provisioning" = "ondemand"
+      "dgem.cloud.google.com/pool-role"    = var.deployment_pattern == "hybrid_baseline_plus_burst" ? "baseline-ondemand" : "fallback-ondemand"
+      "dgem.cloud.google.com/gpu-sharing"  = var.gpu_sharing_strategy
       "cloud.google.com/compute-class"     = "dgem-g4-priority"
     }
 

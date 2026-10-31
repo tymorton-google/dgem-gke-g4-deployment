@@ -1,4 +1,23 @@
-# Primary dgem GPU Engine Deployment (Spot G4 with Fast-Start Snapshot + ComputeClass Fallback)
+# ==============================================================================
+# Pattern 1: Single-Tier ComputeClass Waterfall Deployment (dgem-engine)
+#   Routes via ComputeClass/dgem-g4-priority:
+#     Priority 1: Spot g4-standard-48 (96 GB) -> Priority 2: Spot g4-standard-24 (48 GB vGPU)
+#     -> Priority 3: DWS Flex-Start g4-standard-48 -> Priority 4/5: On-Demand Fallback
+#   NOTE: For Production Pattern 4 (Always-On On-Demand Baseline + Elastic Spot/DWS Burst),
+#   apply `08-dgem-hybrid-baseline-burst.yaml` instead of (or to upgrade) this manifest.
+#
+#   Resource Sizing Guide by G4 Machine Shape & Sharing Strategy:
+#     - g4-standard-48 (1x GPU, 96 GB GDDR7, 48 vCPU, 180 GB RAM, sharing=none):
+#         CPU: 16 req / 44 lim | Mem: 64Gi req / 160Gi lim | KV_CACHE_GB=12 | GPU_UTIL=0.85 | MAX_SEQS=32
+#     - g4-standard-24 (1/2 vGPU, 48 GB GDDR7, 24 vCPU, 96 GB RAM, sharing=none):
+#         CPU: 8 req / 22 lim  | Mem: 48Gi req / 84Gi lim  | KV_CACHE_GB=12 | GPU_UTIL=0.85 | MAX_SEQS=24
+#     - g4-standard-12 (1/4 vGPU, 24 GB GDDR7, 12 vCPU, 48 GB RAM, sharing=none):
+#         CPU: 4 req / 10 lim  | Mem: 20Gi req / 40Gi lim  | KV_CACHE_GB=3  | GPU_UTIL=0.90 | MAX_SEQS=8
+#     - g4-standard-48 + NVIDIA MPS (2 clients/GPU, 48 GB pinned VRAM each):
+#         Set hostIPC: true, nodeSelector.cloud.google.com/gke-gpu-sharing-strategy: mps, GPU_UTIL=0.42, KV_CACHE_GB=12
+#     - g4-standard-48 + Hardware MIG (2g.48gb = 2 slices/GPU, 48 GB hardware-isolated VRAM each):
+#         Set nodeSelector.cloud.google.com/gke-gpu-partition-size: 2g.48gb, GPU_UTIL=0.85, KV_CACHE_GB=12
+# ==============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,6 +25,7 @@ metadata:
   namespace: dgem
   labels:
     app: dgem-engine
+    tier: compute-class-waterfall
 spec:
   replicas: 1
   selector:
@@ -15,6 +35,7 @@ spec:
     metadata:
       labels:
         app: dgem-engine
+        tier: compute-class-waterfall
     spec:
       serviceAccountName: dgem-engine-ksa
       # Route via Custom ComputeClass (Spot G4 -> DWS Flex-Start G4 -> On-Demand G4 fallback + active migration)
@@ -56,17 +77,17 @@ spec:
             # Fallback GCS URI if running without the pre-hydrated PVC
             - name: DGEM_WEIGHTS_URI
               value: "gs://${PROJECT_ID}-dgem-weights/models/diffusiongemma-26B-A4B-it-NVFP4"
-            # Pre-compiled FlashInfer/Triton Blackwell SM120 JIT kernel cache
+            # Pre-compiled FlashInfer/Triton JIT kernel cache
             - name: JIT_CACHE_TAR
               value: "/mnt/weights/jit-cache.tar.gz"
-            # Copy 17.53 GiB NVFP4 safetensors into /dev/shm RAM disk for fast vLLM weight load
+            # Copy 17.53 GiB NVFP4 safetensors into /dev/shm RAM disk for ~3 second vLLM weight load
             - name: COPY_TO_SHM
               value: "1"
             - name: PORT
               value: "8080"
             - name: ROLE
               value: "default"
-            # G4 (NVIDIA RTX PRO 6000 Blackwell 96GB) tuned vLLM & discrete diffusion parameters
+            # G4 (NVIDIA RTX PRO 6000 Blackwell 96GB / 48GB vGPU) tuned vLLM & discrete diffusion parameters
             - name: CANVAS
               value: "128"
             - name: ENFORCE_EAGER
@@ -93,14 +114,15 @@ spec:
                 configMapKeyRef:
                   name: dgem-calibration-config
                   key: fitted_temperature
+          # Sized to fit cleanly on both g4-standard-48 (48 vCPU, 180 GB RAM) and g4-standard-24 (24 vCPU, 96 GB RAM)
           resources:
             requests:
-              cpu: "16"
-              memory: "80Gi"
+              cpu: "8"
+              memory: "48Gi"
               nvidia.com/gpu: "1"
             limits:
-              cpu: "44"
-              memory: "160Gi"
+              cpu: "22"
+              memory: "84Gi"
               nvidia.com/gpu: "1"
           volumeMounts:
             - name: dshm
@@ -130,12 +152,12 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 4
       volumes:
-        # 32 GiB RAM disk for COPY_TO_SHM=1 + NCCL/FlashInfer shared memory
+        # 28 GiB RAM disk for COPY_TO_SHM=1 (17.53 GiB weights) + NCCL/FlashInfer shared memory
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 32Gi
-        # Pre-hydrated Hyperdisk Balanced PVC from dgem-nvfp4-weights-snapshot
+            sizeLimit: 28Gi
+        # Pre-hydrated Hyperdisk Balanced / Multi-Zone Hyperdisk ML PVC from dgem-nvfp4-weights-snapshot
         - name: weights-vol
           persistentVolumeClaim:
             claimName: dgem-nvfp4-weights-pvc

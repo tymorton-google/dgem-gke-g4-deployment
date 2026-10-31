@@ -1,17 +1,70 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Google Cloud Architecture Studio — System-1 Discrete Diffusion (DGEM) on GKE G4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
   <style>
     /* ==========================================================================
-       GOOGLE CLOUD THEME SYSTEM (DARK & LIGHT MODE CSS CUSTOM PROPERTIES)
+       GOOGLE CLOUD STUDIO ALUMINUM LIGHT DEFAULT & DARK MODE THEME SYSTEM
        ========================================================================== */
     :root,
+    [data-theme="light"] {
+      /* 70 / 20 / 10 Studio Aluminum Bento Motion Harmonized Palette */
+      --bg-primary: #EEF2F6;
+      --bg-secondary: #DCE2EA;
+      --bg-card: #F8FAFC;
+      --bg-card-hover: #FFFFFF;
+      --bg-elevated: #E3E8F0;
+      --bg-glass: rgba(248, 250, 252, 0.90);
+      --bg-svg: #F8FAFC;
+      --svg-mask: #F8FAFC;
+      --svg-submask: #EEF2F6;
+      --grid-stroke: #CFD7E3;
+
+      --text-primary: #1B2028;
+      --text-secondary: #334155;
+      --text-muted: #5A6577;
+      --border-color: rgba(148, 163, 184, 0.42);
+      --border-Strong: #94A3B8;
+      --shadow-card:
+        0 10px 28px -8px rgba(15, 23, 42, 0.07),
+        0 2px 6px -1px rgba(15, 23, 42, 0.04),
+        inset 0 1.5px 0 0 rgba(255, 255, 255, 0.92);
+
+      /* Electric Cobalt & Official Google Cloud 4-Color Accents (Light Mode) */
+      --gc-blue: #2563EB;
+      --gc-blue-strong: #1D4ED8;
+      --gc-blue-fill: rgba(37, 99, 235, 0.11);
+      --gc-blue-soft: rgba(37, 99, 235, 0.05);
+
+      --gc-green: #15803D;
+      --gc-green-strong: #16A34A;
+      --gc-green-fill: rgba(22, 163, 74, 0.11);
+      --gc-green-soft: rgba(22, 163, 74, 0.05);
+
+      --gc-amber: #B45309;
+      --gc-amber-strong: #D97706;
+      --gc-amber-fill: rgba(217, 119, 6, 0.13);
+      --gc-amber-soft: rgba(217, 119, 6, 0.05);
+
+      --gc-red: #B91C1C;
+      --gc-red-strong: #DC2626;
+      --gc-red-fill: rgba(220, 38, 38, 0.11);
+      --gc-red-soft: rgba(220, 38, 38, 0.05);
+
+      --gc-purple: #6D28D9;
+      --gc-purple-strong: #7C3AED;
+      --gc-purple-fill: rgba(124, 58, 237, 0.11);
+      --gc-purple-soft: rgba(124, 58, 237, 0.05);
+
+      --gc-slate: #475569;
+      --gc-slate-fill: rgba(100, 116, 139, 0.12);
+    }
+
     [data-theme="dark"] {
       --bg-primary: #0b0f19;
       --bg-secondary: #111827;
@@ -61,55 +114,6 @@
       --gc-slate-fill: rgba(148, 163, 184, 0.14);
     }
 
-    [data-theme="light"] {
-      --bg-primary: #f8fafd;
-      --bg-secondary: #f1f5f9;
-      --bg-card: #ffffff;
-      --bg-card-hover: #f8fafc;
-      --bg-elevated: #f1f5f9;
-      --bg-glass: rgba(255, 255, 255, 0.92);
-      --bg-svg: #ffffff;
-      --svg-mask: #ffffff;
-      --svg-submask: #f8fafc;
-      --grid-stroke: #e2e8f0;
-
-      --text-primary: #0f172a;
-      --text-secondary: #334155;
-      --text-muted: #475569;
-      --border-color: #cbd5e1;
-      --border-Strong: #94a3b8;
-      --shadow-card: 0 8px 24px -6px rgba(15, 23, 42, 0.08);
-
-      /* Google Cloud Signature Brand Palette (Light Mode Tuned for High Contrast) */
-      --gc-blue: #1a73e8;
-      --gc-blue-strong: #174ea6;
-      --gc-blue-fill: rgba(26, 115, 232, 0.10);
-      --gc-blue-soft: rgba(26, 115, 232, 0.04);
-
-      --gc-green: #1e8e3e;
-      --gc-green-strong: #137333;
-      --gc-green-fill: rgba(30, 142, 62, 0.10);
-      --gc-green-soft: rgba(30, 142, 62, 0.04);
-
-      --gc-amber: #b06000;
-      --gc-amber-strong: #e37400;
-      --gc-amber-fill: rgba(249, 171, 0, 0.13);
-      --gc-amber-soft: rgba(249, 171, 0, 0.05);
-
-      --gc-red: #d93025;
-      --gc-red-strong: #a50e0e;
-      --gc-red-fill: rgba(217, 48, 37, 0.10);
-      --gc-red-soft: rgba(217, 48, 37, 0.04);
-
-      --gc-purple: #8430ce;
-      --gc-purple-strong: #681da8;
-      --gc-purple-fill: rgba(147, 52, 230, 0.10);
-      --gc-purple-soft: rgba(147, 52, 230, 0.04);
-
-      --gc-slate: #475569;
-      --gc-slate-fill: rgba(100, 116, 139, 0.10);
-    }
-
     * {
       box-sizing: border-box;
       margin: 0;
@@ -145,32 +149,32 @@
     }
 
     /* ==========================================================================
-       TOP STICKY NAVIGATION & THEME SWITCHER
+       TOP STICKY NAVIGATION & SUITE BAR
        ========================================================================== */
     .topbar {
       position: sticky;
       top: 0;
       z-index: 100;
       background: var(--bg-glass);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border-color);
-      padding: 0.75rem 1.5rem;
+      padding: 0.65rem 1.25rem;
     }
 
     .topbar-inner {
-      max-width: 1320px;
+      max-width: 1360px;
       margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: 0.75rem;
       flex-wrap: wrap;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.65rem;
     }
 
     .gc-dots {
@@ -187,17 +191,18 @@
     }
 
     .brand-title {
-      font-weight: 700;
-      font-size: 1rem;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-weight: 800;
+      font-size: 0.98rem;
       letter-spacing: -0.02em;
       color: var(--text-primary);
     }
 
     .brand-badge {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 0.2rem 0.55rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.18rem 0.55rem;
       border-radius: 999px;
       background: var(--gc-blue-fill);
       color: var(--gc-blue);
@@ -207,19 +212,20 @@
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.35rem;
       flex-wrap: wrap;
     }
 
     .nav-link {
       color: var(--text-secondary);
       text-decoration: none;
-      font-size: 0.8125rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      padding: 0.4rem 0.75rem;
-      border-radius: 0.5rem;
+      padding: 0.36rem 0.65rem;
+      border-radius: 0.45rem;
       border: 1px solid transparent;
       transition: all 0.15s ease;
+      white-space: nowrap;
     }
 
     .nav-link:hover {
@@ -228,20 +234,34 @@
       border-color: var(--border-color);
     }
 
+    .nav-link-bento {
+      background: var(--gc-blue-fill);
+      color: var(--gc-blue);
+      border: 1px solid rgba(37, 99, 235, 0.32);
+      font-weight: 700;
+    }
+
+    .nav-link-bento:hover {
+      background: var(--gc-blue);
+      color: #ffffff;
+      border-color: var(--gc-blue);
+    }
+
     .theme-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
       cursor: pointer;
       font-family: 'Inter', sans-serif;
-      font-size: 0.8125rem;
-      font-weight: 600;
+      font-size: 0.78rem;
+      font-weight: 700;
       color: var(--text-primary);
       background: var(--bg-elevated);
       border: 1px solid var(--border-color);
-      padding: 0.45rem 0.9rem;
+      padding: 0.42rem 0.85rem;
       border-radius: 999px;
       transition: all 0.2s ease;
+      white-space: nowrap;
     }
 
     .theme-btn:hover {
@@ -253,14 +273,14 @@
        MAIN LAYOUT & SECTION CONTAINERS
        ========================================================================== */
     .container {
-      max-width: 1320px;
+      max-width: 1360px;
       margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
+      padding: 1.75rem 1.5rem 4rem;
     }
 
     .section {
       margin-bottom: 3.25rem;
-      scroll-margin-top: 5rem;
+      scroll-margin-top: 5.2rem;
     }
 
     .section-header {
@@ -273,7 +293,7 @@
       gap: 0.5rem;
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--gc-blue);
@@ -284,7 +304,7 @@
       width: 9px;
       height: 9px;
       border-radius: 50%;
-      background: var(--gc-green);
+      background: var(--gc-green-strong);
       animation: pulse 2s infinite;
     }
 
@@ -294,24 +314,122 @@
     }
 
     h1 {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
       font-size: 2rem;
       font-weight: 800;
       letter-spacing: -0.03em;
-      line-height: 1.2;
+      line-height: 1.18;
       margin-bottom: 0.75rem;
     }
 
     h2 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
       margin-bottom: 0.4rem;
+    }
+
+    h3 {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
     }
 
     .lead {
       font-size: 0.95rem;
       color: var(--text-secondary);
-      max-width: 960px;
+      max-width: 1020px;
+    }
+
+    /* ==========================================================================
+       EMBEDDED 16:9 BENTO MOTION STAGE CONTAINERS
+       ========================================================================== */
+    .bento-embed-shell {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 1.15rem;
+      padding: 0.95rem;
+      box-shadow: var(--shadow-card);
+      margin-top: 1.35rem;
+      margin-bottom: 1.5rem;
+      scroll-margin-top: 5.2rem;
+    }
+
+    .bento-embed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.25rem 0.4rem 0.75rem;
+    }
+
+    .bento-embed-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .bento-embed-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      background: var(--gc-blue-fill);
+      color: var(--gc-blue);
+      border: 1px solid var(--gc-blue);
+    }
+
+    .bento-embed-title {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.015em;
+    }
+
+    .bento-fullscreen-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-decoration: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.42rem 0.85rem;
+      border-radius: 0.55rem;
+      background: var(--gc-blue);
+      color: #ffffff;
+      border: 1px solid var(--gc-blue-strong);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .bento-fullscreen-btn:hover {
+      background: var(--gc-blue-strong);
+      transform: translateY(-1px);
+    }
+
+    .bento-aspect-frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 0.85rem;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+
+    .bento-iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
     }
 
     /* ==========================================================================
@@ -320,7 +438,7 @@
     .hero-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: 1rem;
+      border-radius: 1.1rem;
       padding: 1.75rem;
       box-shadow: var(--shadow-card);
       margin-bottom: 1.5rem;
@@ -342,14 +460,15 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1rem;
-      margin-top: 1.5rem;
+      margin-top: 1.4rem;
     }
 
     .kpi-card {
       background: var(--bg-secondary);
       border: 1px solid var(--border-color);
       border-radius: 0.85rem;
-      padding: 1.25rem;
+      padding: 1.2rem;
+      box-shadow: var(--shadow-card);
       transition: transform 0.15s ease, border-color 0.15s ease;
     }
 
@@ -361,15 +480,15 @@
     .kpi-tag {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.72rem;
+      font-weight: 700;
       padding: 0.15rem 0.5rem;
       border-radius: 0.375rem;
       margin-bottom: 0.5rem;
     }
 
     .kpi-value {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Plus Jakarta Sans', 'JetBrains Mono', monospace;
       font-size: 1.85rem;
       font-weight: 800;
       letter-spacing: -0.03em;
@@ -390,7 +509,7 @@
     }
 
     /* ==========================================================================
-       DIAGRAM CONTAINERS & INLINE SVG STYLING
+       DIAGRAM CONTAINERS, TABLES & ARCHITECTURAL CARDS
        ========================================================================== */
     .diagram-card {
       background: var(--bg-svg);
@@ -420,7 +539,7 @@
     .info-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: 0.85rem;
+      border-radius: 0.9rem;
       padding: 1.25rem;
       box-shadow: var(--shadow-card);
     }
@@ -446,7 +565,7 @@
     .dot.purple { background: var(--gc-purple-strong); }
 
     .info-card h3 {
-      font-size: 0.925rem;
+      font-size: 0.94rem;
       font-weight: 700;
       color: var(--text-primary);
     }
@@ -471,8 +590,103 @@
       font-weight: bold;
     }
 
+    /* Data Tables (G4 Machine Series & Provisioning Matrix) */
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.35rem;
+      box-shadow: var(--shadow-card);
+      margin-top: 1.25rem;
+      overflow-x: auto;
+    }
+
+    .table-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.9rem;
+    }
+
+    .arch-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      min-width: 880px;
+    }
+
+    .arch-table th {
+      text-align: left;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      background: var(--bg-secondary);
+      padding: 0.7rem 0.85rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .arch-table td {
+      padding: 0.72rem 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+
+    .arch-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .arch-table tr.row-highlight {
+      background: var(--gc-blue-soft);
+    }
+
+    .arch-table tr.row-green {
+      background: var(--gc-green-soft);
+    }
+
+    .arch-table tr.row-warn {
+      background: var(--gc-red-soft);
+    }
+
+    .pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.71rem;
+      font-weight: 700;
+      padding: 0.14rem 0.5rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pill-blue { background: var(--gc-blue-fill); color: var(--gc-blue); border: 1px solid var(--gc-blue); }
+    .pill-green { background: var(--gc-green-fill); color: var(--gc-green); border: 1px solid var(--gc-green); }
+    .pill-amber { background: var(--gc-amber-fill); color: var(--gc-amber); border: 1px solid var(--gc-amber); }
+    .pill-red { background: var(--gc-red-fill); color: var(--gc-red); border: 1px solid var(--gc-red); }
+    .pill-purple { background: var(--gc-purple-fill); color: var(--gc-purple); border: 1px solid var(--gc-purple); }
+
+    .callout-banner {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--gc-amber-strong);
+      border-radius: 0.85rem;
+      padding: 1.15rem 1.35rem;
+      box-shadow: var(--shadow-card);
+      margin-top: 1.25rem;
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+    }
+
+    .callout-banner strong {
+      color: var(--text-primary);
+    }
+
     /* ==========================================================================
-       SECTION 4: INTERACTIVE RETAIL ENRICHMENT SIMULATOR
+       SECTION 5: INTERACTIVE RETAIL ENRICHMENT SIMULATOR
        ========================================================================== */
     .sim-wrapper {
       background: var(--bg-card);
@@ -694,6 +908,7 @@
       border: 1px solid var(--border-color);
       border-radius: 0.8rem;
       padding: 1.1rem;
+      box-shadow: var(--shadow-card);
       transition: all 0.15s ease;
     }
 
@@ -727,11 +942,23 @@
       font-size: 0.8rem;
     }
   </style>
+  <script>
+    // Immediate theme initialization before first paint (Defaults to Studio Aluminum 'light')
+    (function () {
+      try {
+        var saved = localStorage.getItem('dgem-theme');
+        var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
 </head>
 <body>
 
   <!-- ========================================================================
-       STICKY TOP BAR WITH GOOGLE CLOUD LIGHT / DARK MODE SWITCHER
+       STICKY TOP BAR WITH SUITE LINKS & SYNCHRONIZED LIGHT / DARK SWITCHER
        ======================================================================== -->
   <header class="topbar">
     <div class="topbar-inner">
@@ -743,19 +970,22 @@
           <span style="background:#34A853"></span>
         </div>
         <span class="brand-title">Google Cloud GKE &amp; Vertex AI Architecture Studio</span>
-        <span class="brand-badge">DGEM System-1 on G4</span>
+        <span class="brand-badge">Studio Aluminum Suite</span>
       </div>
 
-      <nav class="nav-links" aria-label="Section Navigation">
-        <a class="nav-link" href="#overview">1. Executive Scorecard</a>
+      <nav class="nav-links" aria-label="Architecture &amp; Bento Suite Navigation">
+        <a class="nav-link" href="#overview">1. Executive &amp; Bento 1</a>
         <a class="nav-link" href="#gke-architecture">2. GKE G4 Runtime SVG</a>
-        <a class="nav-link" href="#diffusion-mechanics">3. System-1 Diffusion SVG</a>
-        <a class="nav-link" href="#retail-simulator">4. Interactive Retail Simulator</a>
+        <a class="nav-link" href="#g4-sizing-sharing">3. G4 Sizing, MIG/MPS &amp; Pattern 4</a>
+        <a class="nav-link" href="#diffusion-mechanics">4. System-1 Diffusion SVG</a>
+        <a class="nav-link" href="#retail-simulator">5. Live Simulator</a>
+        <a class="nav-link nav-link-bento" href="dgem_bento_motion_explainer.html" target="_blank" rel="noopener">🎬 Bento 1 (System-1) ↗</a>
+        <a class="nav-link nav-link-bento" href="dgem_g4_scaling_bento_explainer.html" target="_blank" rel="noopener">🎬 Bento 2 (G4 &amp; Pattern 4) ↗</a>
       </nav>
 
       <button id="theme-toggle" class="theme-btn" type="button" onclick="toggleTheme()" aria-label="Toggle Light and Dark Theme">
-        <span id="theme-icon">☀️</span>
-        <span id="theme-label">Switch to Light Mode</span>
+        <span id="theme-icon">🌙</span>
+        <span id="theme-label">Switch to Dark Mode</span>
       </button>
     </div>
   </header>
@@ -763,7 +993,7 @@
   <main class="container">
 
     <!-- ======================================================================
-         SECTION 1: EXECUTIVE OVERVIEW & VERIFIED G4 BENCHMARK SCORECARD
+         SECTION 1: EXECUTIVE OVERVIEW, SCORECARD & EMBEDDED BENTO BOARD #1
          ====================================================================== -->
     <section id="overview" class="section">
       <div class="hero-card">
@@ -773,7 +1003,7 @@
         </div>
         <h1>Calibrated System-1 Discrete Diffusion + Selective Vertex AI Cascade</h1>
         <p class="lead">
-          High-volume enterprise pipelines—such as <strong>Retail Product Catalog Enrichment</strong>, attribute extraction, and compliance triage—cannot afford 400–900 ms of sequential autoregressive decoding on every SKU. By deploying <strong>DiffusionGemma 26B-A4B (ModelOpt NVFP4)</strong> on <strong>GKE G4 (<code>g4-standard-48</code>)</strong> nodes as a fast, calibrated <strong>System-1 decision engine</strong> (<code>57 ms</code> p50) and escalating only high-entropy slots (<code>H / ln(K) ≥ τ</code>) to <strong>Vertex AI <code>gemini-3.5-flash-lite</code></strong> (System-2), organizations resolve <strong>75–85% of catalog decisions in a single forward pass</strong> while maintaining near-100% accuracy on ambiguous edge cases.
+          High-volume enterprise pipelines—such as <strong>Retail Product Catalog Enrichment</strong>, attribute extraction, and compliance triage—cannot afford 400–900 ms of sequential autoregressive decoding on every SKU. By deploying <strong>Decision Gemma (<code>DiffusionGemma 26B-A4B ModelOpt NVFP4</code>)</strong> on <strong>GKE G4 (<code>g4-standard-48</code> / <code>g4-standard-24</code>)</strong> nodes as a fast, calibrated <strong>System-1 decision engine</strong> (<code>57 ms</code> p50) and escalating only high-entropy slots (<code>H / ln(K) ≥ τ</code>) to <strong>Vertex AI <code>gemini-3.5-flash-lite</code></strong> (System-2), organizations resolve <strong>75–85% of catalog decisions in a single forward pass</strong> while maintaining near-100% accuracy on ambiguous edge cases.
         </p>
 
         <div class="kpi-grid">
@@ -781,7 +1011,7 @@
             <span class="kpi-tag" style="background:var(--gc-green-fill); color:var(--gc-green); border:1px solid var(--gc-green)">STAGE 1 G4 LATENCY</span>
             <div class="kpi-value" style="color:var(--gc-green)">57 ms <span style="font-size:1rem; font-weight:600">p50</span></div>
             <div class="kpi-title">Single-Pass Multi-Slot Denoising</div>
-            <div class="kpi-desc">Evaluates 4–16 structured slots (<code>boolean</code>, <code>choice</code>, <code>score</code>) simultaneously in 1 bidirectional forward pass (<code>67 ms</code> p99) on 1x NVIDIA RTX PRO 6000 Blackwell (96 GB).</div>
+            <div class="kpi-desc">Evaluates 4–16 structured slots (<code>boolean</code>, <code>choice</code>, <code>score</code>) simultaneously in 1 bidirectional forward pass (<code>67 ms</code> p99) on NVIDIA RTX PRO 6000 Blackwell (96 GB).</div>
           </div>
 
           <div class="kpi-card">
@@ -799,11 +1029,33 @@
           </div>
 
           <div class="kpi-card">
-            <span class="kpi-tag" style="background:var(--gc-purple-fill); color:var(--gc-purple); border:1px solid var(--gc-purple)">CAPACITY WATERFALL</span>
-            <div class="kpi-value" style="color:var(--gc-purple)">3-Tier <span style="font-size:1rem; font-weight:600">GKE G4</span></div>
-            <div class="kpi-title">Spot → DWS Flex-Start → On-Demand</div>
-            <div class="kpi-desc">Custom <code>ComputeClass</code> (<code>dgem-g4-priority</code>) captures 60–91% GKE Spot GPU savings and automatically falls back to DWS Flex-Start or On-Demand with active reconciliation.</div>
+            <span class="kpi-tag" style="background:var(--gc-purple-fill); color:var(--gc-purple); border:1px solid var(--gc-purple)">HYBRID PATTERN 4</span>
+            <div class="kpi-value" style="color:var(--gc-purple)">100% SLA <span style="font-size:1rem; font-weight:600">+ Spot</span></div>
+            <div class="kpi-title">Always-On Baseline + Spot/DWS Burst</div>
+            <div class="kpi-desc">1 K8s Service (<code>dgem-engine:8080</code>) routes across a warm On-Demand G4 baseline (<code>0 ms</code> cold start) and an elastic Spot + DWS Flex-Start burst pool (<code>2–3× MPS</code>).</div>
           </div>
+        </div>
+      </div>
+
+      <!-- EMBEDDED 16:9 BENTO MOTION BOARD #1 -->
+      <div id="bento-board-1" class="bento-embed-shell">
+        <div class="bento-embed-header">
+          <div class="bento-embed-title-group">
+            <span class="bento-embed-badge">BENTO MOTION BOARD #1</span>
+            <span class="bento-embed-title">Interactive Motion Summary 1 — System-1 Diffusion vs. Autoregressive Baseline</span>
+          </div>
+          <a class="bento-fullscreen-btn" href="dgem_bento_motion_explainer.html" target="_blank" rel="noopener">
+            Open Fullscreen 16:9 Board ↗
+          </a>
+        </div>
+        <div class="bento-aspect-frame">
+          <iframe
+            id="iframe-bento-1"
+            class="bento-iframe"
+            src="dgem_bento_motion_explainer.html"
+            title="Interactive Motion Summary 1 — System-1 Diffusion vs. Autoregressive Baseline"
+            loading="eager"
+          ></iframe>
         </div>
       </div>
     </section>
@@ -1088,7 +1340,7 @@
           </div>
           <ul>
             <li><strong>Native SM120 FP4 Tensor Cores:</strong> Executes <code>ModelOpt NVFP4 (W4A4)</code> weights natively with <code>17.53 GiB</code> footprint out of <code>96 GB GDDR7</code> VRAM.</li>
-            <li><strong>Massive KV Cache Headroom:</strong> Over <code>78 GiB</code> of free VRAM remains for batched multi-slot retail prompts and SigLIP image tokens.</li>
+            <li><strong>Massive KV Cache Headroom:</strong> Over <code>78 GiB</code> of free VRAM remains on <code>g4-standard-48</code> for batched multi-slot retail prompts, SigLIP image tokens, or <code>2–3× MPS</code> multi-instance sharing.</li>
             <li><strong>Constant <code>O(1)</code> Step Latency:</strong> 4-slot structured decisions complete in <code>57 ms</code> p50 (<code>67 ms</code> p99).</li>
           </ul>
         </div>
@@ -1111,8 +1363,8 @@
             <h3>3-Tier ComputeClass Resilience</h3>
           </div>
           <ul>
-            <li><strong>Priority 1 (GKE Spot G4):</strong> Primary execution tier capturing 60–91% GPU cost savings against On-Demand pricing.</li>
-            <li><strong>Priority 2 (DWS Flex-Start):</strong> Dynamic Workload Scheduler provisions fallback G4 capacity during regional Spot tightness.</li>
+            <li><strong>Priority 1 (GKE Spot G4):</strong> Primary burst execution tier capturing 60–91% GPU cost savings against On-Demand pricing.</li>
+            <li><strong>Priority 2 (DWS Flex-Start):</strong> Dynamic Workload Scheduler provisions fallback G4 capacity (up to 50% discount) during regional Spot tightness.</li>
             <li><strong>Priority 3 (On-Demand + Active Migration):</strong> Guarantees production SLA and automatically migrates back to Spot when capacity frees up.</li>
           </ul>
         </div>
@@ -1120,13 +1372,390 @@
     </section>
 
     <!-- ======================================================================
-         SECTION 3: INLINE SVG DIAGRAM #2 — HOW SYSTEM-1 DISCRETE DIFFUSION WORKS
+         SECTION 3: G4 MACHINE SIZING, GPU SHARING (vGPU/MIG/MPS) & PATTERN 4 HYBRID SCALING
+         ====================================================================== -->
+    <section id="g4-sizing-sharing" class="section">
+      <div class="section-header">
+        <div class="eyebrow">
+          <span class="pulse-dot" style="background:var(--gc-amber-strong)"></span>
+          <span>Architecture Blueprint #2 • G4 Machine Sizing, Multi-Instance GPU Sharing &amp; Pattern 4 Hybrid Scaling</span>
+        </div>
+        <h2>GKE G4 Machine Series Sizing, GPU Sharing (vGPU / MIG / MPS) &amp; Pattern 4 Hybrid Architecture</h2>
+        <p class="lead">
+          Because <code>DiffusionGemma 26B-A4B NVFP4</code> requires only <strong><code>17.53 GiB</code> of static VRAM weights</strong> (~20.5 GiB total with CUDA context and FlashInfer workspace), a single <code>96 GB</code> NVIDIA RTX PRO 6000 Blackwell GPU on <code>g4-standard-48</code> has over <strong><code>75 GiB</code> of spare GDDR7 headroom</strong>. Cloud architects can right-size deployments using <strong>fractional vGPU shapes (<code>g4-standard-12</code> / <code>g4-standard-24</code>)</strong>, maximize single-node throughput via <strong><code>2–3× NVIDIA MPS</code></strong>, enforce strict hardware SLA isolation via <strong><code>MIG (2g.48gb / 1g.24gb)</code></strong>, and combine an <strong>Always-On On-Demand Baseline</strong> with an <strong>Elastic Spot / DWS Flex-Start Burst Pool (Pattern 4)</strong>.
+        </p>
+      </div>
+
+      <!-- EMBEDDED 16:9 BENTO MOTION BOARD #2 -->
+      <div id="bento-board-2" class="bento-embed-shell">
+        <div class="bento-embed-header">
+          <div class="bento-embed-title-group">
+            <span class="bento-embed-badge">BENTO MOTION BOARD #2</span>
+            <span class="bento-embed-title">Interactive Motion Summary 2 — G4 Machine Sizing, MIG/MPS Sharing &amp; Pattern 4 Hybrid Scaling</span>
+          </div>
+          <a class="bento-fullscreen-btn" href="dgem_g4_scaling_bento_explainer.html" target="_blank" rel="noopener">
+            Open Fullscreen 16:9 Board ↗
+          </a>
+        </div>
+        <div class="bento-aspect-frame">
+          <iframe
+            id="iframe-bento-2"
+            class="bento-iframe"
+            src="dgem_g4_scaling_bento_explainer.html"
+            title="Interactive Motion Summary 2 — G4 Machine Sizing, MIG/MPS Sharing & Pattern 4 Hybrid Scaling"
+            loading="lazy"
+          ></iframe>
+        </div>
+      </div>
+
+      <!-- SUBSECTION 3A: OFFICIAL GOOGLE CLOUD G4 MACHINE SERIES TABLE -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>Official Google Cloud G4 Machine Series Matrix (<code>nvidia-rtx-pro-6000</code> Blackwell)</h3>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.15rem;">
+              Fractional G4 vGPU shapes require GKE <code>1.35.8-gke.1518000+</code>. Note: GKE does not permit NVIDIA MPS on fractional (<code>&lt; 1 GPU</code>) shapes.
+            </div>
+          </div>
+          <span class="pill pill-blue">Static NVFP4 Weights: 17.53 GiB / Instance</span>
+        </div>
+
+        <table class="arch-table" aria-label="Official Google Cloud G4 Machine Series Sizing Table">
+          <thead>
+            <tr>
+              <th>G4 Machine Type</th>
+              <th>GPU Fraction / Count</th>
+              <th>GDDR7 VRAM</th>
+              <th>vCPUs / System RAM</th>
+              <th>DGEM Pod Capacity &amp; Sharing Support</th>
+              <th>Recommended Architectural Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-warn">
+              <td><code>g4-standard-6</code></td>
+              <td><code>1/8 GPU</code> (vGPU)</td>
+              <td><strong>12 GB</strong></td>
+              <td>6 vCPUs / 24 GB</td>
+              <td><span class="pill pill-red">0 Pods — OOM</span> (12 GB &lt; 17.53 GiB weights)</td>
+              <td><strong>Not Viable for 26B NVFP4:</strong> Insufficient VRAM to load static model weights.</td>
+            </tr>
+            <tr>
+              <td><code>g4-standard-12</code></td>
+              <td><code>1/4 GPU</code> (vGPU)</td>
+              <td><strong>24 GB</strong></td>
+              <td>12 vCPUs / 48 GB</td>
+              <td><span class="pill pill-amber">1 Compact Pod</span> (~4.5 GiB KV cache, <code>MAX_NUM_SEQS=4</code>)</td>
+              <td><strong>Lowest-Cost Dedicated Entry:</strong> Ideal for dev/staging or low-QPS always-on baseline.</td>
+            </tr>
+            <tr class="row-green">
+              <td><code>g4-standard-24</code></td>
+              <td><code>1/2 GPU</code> (vGPU)</td>
+              <td><strong>48 GB</strong></td>
+              <td>24 vCPUs / 96 GB</td>
+              <td><span class="pill pill-green">1 Full Pod</span> (~28 GiB KV cache) or <code>2 Tight Pods</code> (Time-Sharing; no MPS on &lt;1 GPU)</td>
+              <td><strong>Right-Sized Always-On Baseline (Use Case C):</strong> Hypervisor-isolated 50% GPU slice for Pattern 4 steady-state floor.</td>
+            </tr>
+            <tr class="row-highlight">
+              <td><code>g4-standard-48</code></td>
+              <td><strong>1 Physical GPU</strong></td>
+              <td><strong>96 GB</strong></td>
+              <td>48 vCPUs / 192 GB</td>
+              <td><span class="pill pill-blue">1 High-Batch Pod</span> or <strong><code>2–3× MPS Pods</code></strong> or <strong><code>2× 2g.48gb / 4× 1g.24gb MIG</code></strong></td>
+              <td><strong>Primary Production Node:</strong> Best for high-throughput Spot/Flex-Start burst pools and MIG multi-tenant isolation.</td>
+            </tr>
+            <tr>
+              <td><code>g4-standard-96</code></td>
+              <td><strong>2 Physical GPUs</strong></td>
+              <td><strong>192 GB</strong> (2×96 GB)</td>
+              <td>96 vCPUs / 384 GB</td>
+              <td><code>2–6× MPS Pods</code> or <code>4× 2g.48gb / 8× 1g.24gb MIG</code></td>
+              <td><strong>Dual-Socket Regional Hub:</strong> High-throughput multi-GPU node for large catalog ingestion pipelines.</td>
+            </tr>
+            <tr>
+              <td><code>g4-standard-192</code></td>
+              <td><strong>4 Physical GPUs</strong></td>
+              <td><strong>384 GB</strong> (4×96 GB)</td>
+              <td>192 vCPUs / 768 GB</td>
+              <td><code>4–12× MPS Pods</code> across 4 independent NVFP4 engines</td>
+              <td><strong>Quad-GPU Consolidation:</strong> Dense multi-tenant inference cluster consolidation.</td>
+            </tr>
+            <tr>
+              <td><code>g4-standard-384</code></td>
+              <td><strong>8 Physical GPUs</strong></td>
+              <td><strong>768 GB</strong> (8×96 GB)</td>
+              <td>384 vCPUs / 1,536 GB</td>
+              <td><code>8–24× MPS Pods</code> across 8 independent NVFP4 engines</td>
+              <td><strong>Maximum Fleet Density:</strong> Massive 100M+ SKU batch catalog backfill campaigns.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SUBSECTION 3B: GKE GPU SHARING DECISION MATRIX BY USE CASE -->
+      <div class="summary-grid" style="margin-top:1.35rem;">
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="dot blue"></span>
+            <h3>Use Case A — High-Throughput Batch Catalog Enrichment</h3>
+          </div>
+          <div style="margin-bottom:0.6rem;">
+            <span class="pill pill-blue">2–3× NVIDIA MPS on g4-standard-48 (96 GB)</span>
+          </div>
+          <ul>
+            <li><strong>GKE Configuration:</strong> <code>--gpu-sharing-strategy=mps,max-shared-clients-per-gpu=2</code> (or <code>3</code>) with vLLM continuous batching (<code>gpu-memory-utilization=0.30</code>).</li>
+            <li><strong><code>1.4×–1.7×</code> Throughput Boost:</strong> Overlaps CPU tokenization, JSON schema building, and logit slicing in Pod A with GPU SM120 FP4 Tensor Core execution in Pod B.</li>
+            <li><strong>96 GB VRAM Math (3× MPS):</strong> <code>3 × 17.53 GiB = 52.59 GiB</code> weights + <code>6.6 GiB</code> CUDA context = <code>59.2 GiB</code>, leaving <code>~36.8 GiB</code> (<code>~12.2 GiB/pod</code>) for KV cache.</li>
+          </ul>
+        </div>
+
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="dot purple"></span>
+            <h3>Use Case B — Strict Multi-Tenant / <code>p99</code> Latency Isolation</h3>
+          </div>
+          <div style="margin-bottom:0.6rem;">
+            <span class="pill pill-purple">Hardware MIG (2g.48gb = 2 Slices or 1g.24gb = 4 Slices)</span>
+          </div>
+          <ul>
+            <li><strong>GKE Configuration:</strong> Partition <code>g4-standard-48</code> (<code>96 GB</code>) into <strong>2× <code>2g.48gb</code></strong> (production recommended) or <strong>4× <code>1g.24gb</code></strong> hardware instances.</li>
+            <li><strong>Zero Cross-Tenant Jitter:</strong> Each MIG slice receives dedicated Streaming Multiprocessors (SMs), L2 cache slices, and GDDR7 memory bandwidth controllers.</li>
+            <li><strong>Workload Separation:</strong> Heavy 32-category 2-stage bracket tournaments on Slice 1 never impact <code>57 ms</code> live search/checkout triage on Slice 2.</li>
+          </ul>
+        </div>
+
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="dot green"></span>
+            <h3>Use Case C — Right-Sized Entry / Always-On Baseline</h3>
+          </div>
+          <div style="margin-bottom:0.6rem;">
+            <span class="pill pill-green">Fractional vGPU (g4-standard-24 48GB or g4-standard-12 24GB)</span>
+          </div>
+          <ul>
+            <li><strong>Hypervisor-Level Isolation:</strong> Runs 1 dedicated <code>dgem-engine</code> pod per VM on a <code>48 GB</code> (1/2 GPU) or <code>24 GB</code> (1/4 GPU) fractional Blackwell slice.</li>
+            <li><strong>50–75% Lower Baseline Spend:</strong> Slashes fixed On-Demand hourly cost for the Pattern 4 24/7 baseline pool while maintaining <code>0 ms</code> cold start.</li>
+            <li><strong>Simple Operations:</strong> No MIG partition management or multi-client MPS memory cap tuning required.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- CAPACITY GUARDRAIL CALLOUT: WHY 5 INSTANCES FAIL & WHY 2-3 MPS BEATS 4+ -->
+      <div class="callout-banner">
+        <strong>Capacity &amp; GEMM Efficiency Guardrail — Why 5 Instances Cannot Fit on 96 GB &amp; Why 4+ MPS Degrades Throughput:</strong><br>
+        • <strong>Why 5 Instances Fail with Immediate OOM (<code>&gt; 96 GB</code>):</strong> Five replicas require <code>5 × 17.53 GiB = 87.65 GiB</code> in static NVFP4 safetensor weights alone. Adding <code>5 × 2.5 GiB = 12.50 GiB</code> for per-process CUDA contexts, cuBLAS/FlashInfer SM120 workspaces, and PyTorch allocator reserves pushes total static demand to <strong><code>100.15 GiB &gt; 96.0 GiB</code></strong>—triggering <code>CUDA out of memory</code> before allocating a single KV cache token.<br>
+        • <strong>Why 2–3× MPS Outperforms 4× MPS on 1 GPU:</strong> Running 4 MPS instances duplicates static weights 4 times (<code>70.12 GiB</code>), sacrificing <code>17.53–35.06 GiB</code> of dynamic KV cache headroom and causing L2 cache thrashing across 4 concurrent weight streams. <strong>1 pod with vLLM continuous batching (<code>MAX_NUM_SEQS=16..32</code>) or <code>2–3× MPS</code> replicas is the empirical throughput sweet spot.</strong>
+      </div>
+
+      <!-- SUBSECTION 3C: INLINE SVG DIAGRAM #2 — PATTERN 4 HYBRID BASELINE + BURST ARCHITECTURE -->
+      <div class="section-header" style="margin-top:2rem;">
+        <div class="eyebrow">
+          <span class="pulse-dot" style="background:var(--gc-green-strong)"></span>
+          <span>Recommended Production Topology • Pattern 4 Hybrid Scaling</span>
+        </div>
+        <h3>Architectural Pattern 4: Always-On On-Demand Baseline (<code>dgem-engine-baseline</code>) + Elastic Spot / DWS Burst (<code>dgem-engine-burst</code>)</h3>
+        <p class="lead">
+          Rather than choosing between pure On-Demand cost and pure Spot preemption risk, <strong>Pattern 4</strong> places two Kubernetes Deployments behind a single unified Service (<code>dgem-engine:8080</code>, selector <code>app: dgem-engine</code>): an <strong>Always-On On-Demand Baseline</strong> that guarantees 100% availability with <code>0 ms</code> cold start, and an <strong>HPA-driven Elastic Burst Pool</strong> that scales out onto discounted <strong>Spot G4 (60–91% off)</strong> and <strong>DWS Flex-Start G4 (up to 50% off)</strong> nodes with <code>7.91 s</code> 3-layer fast-start snapshots.
+        </p>
+      </div>
+
+      <div class="diagram-card">
+        <svg viewBox="0 0 1180 420" role="img" aria-label="Pattern 4 Hybrid Always-On On-Demand Baseline plus Elastic Spot and DWS Flex-Start Burst Architecture Diagram">
+          <defs>
+            <pattern id="arch-grid-p4" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--grid-stroke)" stroke-width="0.6"/>
+            </pattern>
+          </defs>
+
+          <!-- Background Grid -->
+          <rect width="100%" height="100%" fill="url(#arch-grid-p4)" />
+
+          <!-- Outer Cluster Frame -->
+          <rect x="20" y="16" width="1140" height="334" rx="12" fill="var(--gc-blue-soft)" stroke="var(--gc-blue)" stroke-width="1.5" stroke-dasharray="8,4" />
+          <text x="36" y="38" fill="var(--gc-blue)" font-size="11.5" font-weight="700">Pattern 4 Hybrid Topology • 1 K8s Service Routing Across Always-On On-Demand Baseline + Elastic Spot/DWS Burst</text>
+
+          <!-- ================================================================
+               CONNECTING ARROWS (Z-ORDERED BEHIND BOXES)
+               ================================================================ -->
+          <!-- Gateway -> Unified K8s Service -->
+          <line x1="248" y1="118" x2="282" y2="168" stroke="var(--gc-blue)" stroke-width="2.2" marker-end="url(#arrow-blue)" />
+
+          <!-- HPA -> Burst Deployment -->
+          <path d="M 248 272 L 542 272 L 562 272" fill="none" stroke="var(--gc-purple)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-purple)" />
+          <rect x="310" y="280" width="218" height="20" rx="4" fill="var(--svg-mask)" stroke="var(--gc-purple)" stroke-width="1" />
+          <text x="419" y="294" fill="var(--gc-purple)" font-size="9" font-weight="700" text-anchor="middle">HPA Scales Replicas 1..N on Queue</text>
+
+          <!-- Unified K8s Service -> Tier A Baseline Deployment -->
+          <path d="M 520 165 L 542 165 L 542 120 L 562 120" fill="none" stroke="var(--gc-green)" stroke-width="2.4" marker-end="url(#arrow-green)" />
+
+          <!-- Unified K8s Service -> Tier B Burst Deployment -->
+          <path d="M 520 215 L 542 215 L 542 252 L 562 252" fill="none" stroke="var(--gc-amber)" stroke-width="2.4" marker-end="url(#arrow-amber)" />
+
+          <!-- ================================================================
+               LEFT COLUMN: GATEWAY PODS & HPA CONTROLLER
+               ================================================================ -->
+          <!-- Box 1A: dgem-gateway Pods -->
+          <rect x="38" y="56" width="210" height="120" rx="8" fill="var(--svg-mask)" />
+          <rect x="38" y="56" width="210" height="120" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.5" />
+          <text x="143" y="78" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">dgem-gateway Pods</text>
+          <text x="143" y="96" fill="var(--gc-blue)" font-size="9.5" font-weight="600" text-anchor="middle">Stateless CPU Pool (dgem serve)</text>
+          <text x="143" y="116" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">• Multi-Slot Prompt Canvas</text>
+          <text x="143" y="133" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">• Entropy Gate (τ = 0.16)</text>
+          <text x="143" y="150" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">• Retry &amp; 45s Drain Handler</text>
+
+          <!-- Box 1B: Cloud HPA v2 Controller -->
+          <rect x="38" y="196" width="210" height="138" rx="8" fill="var(--svg-mask)" />
+          <rect x="38" y="196" width="210" height="138" rx="8" fill="var(--gc-purple-fill)" stroke="var(--gc-purple)" stroke-width="1.5" />
+          <text x="143" y="218" fill="var(--text-primary)" font-size="11" font-weight="700" text-anchor="middle">GKE Autoscaler (HPA v2)</text>
+          <text x="143" y="236" fill="var(--gc-purple)" font-size="9.5" font-weight="600" text-anchor="middle">Custom Prometheus / GCM Metrics</text>
+          <text x="143" y="256" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">• vllm:num_requests_waiting</text>
+          <text x="143" y="273" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">• GPU Duty Cycle (&gt; 70%)</text>
+          <text x="143" y="290" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">• Scales ONLY Burst Pool</text>
+          <text x="143" y="309" fill="var(--gc-purple)" font-size="9.5" font-weight="700" text-anchor="middle">Baseline Never Scales to 0</text>
+
+          <!-- ================================================================
+               CENTER COLUMN: UNIFIED KUBERNETES SERVICE
+               ================================================================ -->
+          <rect x="284" y="108" width="236" height="156" rx="8" fill="var(--svg-mask)" />
+          <rect x="284" y="108" width="236" height="156" rx="8" fill="var(--gc-blue-fill)" stroke="var(--gc-blue)" stroke-width="1.8" />
+          <text x="402" y="132" fill="var(--text-primary)" font-size="11.5" font-weight="700" text-anchor="middle">1 K8s Service (:8080)</text>
+          <text x="402" y="150" fill="var(--gc-blue)" font-size="10" font-weight="700" text-anchor="middle">Service: dgem-engine</text>
+          <text x="402" y="172" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">Selector: app=dgem-engine</text>
+          <text x="402" y="190" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">Spans Both Deployments</text>
+          <text x="402" y="208" fill="var(--text-secondary)" font-size="9.5" text-anchor="middle">Readiness: GET /health</text>
+          <text x="402" y="228" fill="var(--gc-green)" font-size="9.5" font-weight="700" text-anchor="middle">Automatic EndpointSlice</text>
+          <text x="402" y="244" fill="var(--gc-green)" font-size="9.5" font-weight="700" text-anchor="middle">Traffic Multiplexing</text>
+
+          <!-- ================================================================
+               RIGHT COLUMN TIER A: ALWAYS-ON ON-DEMAND BASELINE DEPLOYMENT
+               ================================================================ -->
+          <rect x="564" y="54" width="576" height="132" rx="8" fill="var(--svg-mask)" />
+          <rect x="564" y="54" width="576" height="132" rx="8" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.8" />
+          <text x="580" y="75" fill="var(--gc-green)" font-size="10.8" font-weight="700">1. dgem-engine-baseline Deployment (replicas: 1..2 • Always-On SLA Floor)</text>
+
+          <!-- Baseline Inner Card 1 -->
+          <rect x="580" y="86" width="268" height="86" rx="6" fill="var(--svg-submask)" stroke="var(--gc-green)" stroke-width="1.2" />
+          <text x="714" y="106" fill="var(--text-primary)" font-size="10" font-weight="700" text-anchor="middle">Warm On-Demand G4 Node Pool</text>
+          <text x="714" y="124" fill="var(--text-secondary)" font-size="9.2" text-anchor="middle">g4-standard-24 (48GB) or -48 (96GB)</text>
+          <text x="714" y="141" fill="var(--text-secondary)" font-size="9.2" text-anchor="middle">1–3yr CUD • Zero Preemption Risk</text>
+          <text x="714" y="159" fill="var(--gc-green)" font-size="9.2" font-weight="700" text-anchor="middle">0 ms Cold Start • 100% Availability</text>
+
+          <!-- Baseline Inner Card 2 -->
+          <rect x="860" y="86" width="264" height="86" rx="6" fill="var(--svg-submask)" stroke="var(--gc-green)" stroke-width="1.2" />
+          <text x="992" y="106" fill="var(--text-primary)" font-size="10" font-weight="700" text-anchor="middle">Steady-State SLA Protection</text>
+          <text x="992" y="124" fill="var(--text-secondary)" font-size="9.2" text-anchor="middle">Serves 24/7 Real-Time SKU Traffic</text>
+          <text x="992" y="141" fill="var(--text-secondary)" font-size="9.2" text-anchor="middle">57 ms p50 Single-Pass Latency</text>
+          <text x="992" y="159" fill="var(--gc-green)" font-size="9.2" font-weight="700" text-anchor="middle">Immune to Regional Spot Stockouts</text>
+
+          <!-- ================================================================
+               RIGHT COLUMN TIER B: ELASTIC SPOT / DWS FLEX-START BURST DEPLOYMENT
+               ================================================================ -->
+          <rect x="564" y="200" width="576" height="134" rx="8" fill="var(--svg-mask)" />
+          <rect x="564" y="200" width="576" height="134" rx="8" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.8" />
+          <text x="580" y="221" fill="var(--gc-amber)" font-size="10.8" font-weight="700">2. dgem-engine-burst Deployment + HPA (replicas: 1..N • ComputeClass: dgem-g4-priority)</text>
+
+          <!-- Burst Inner Card 1: Priority 1 Spot -->
+          <rect x="580" y="233" width="176" height="88" rx="6" fill="var(--svg-submask)" stroke="var(--gc-green)" stroke-width="1.2" />
+          <text x="668" y="253" fill="var(--gc-green)" font-size="10" font-weight="700" text-anchor="middle">Priority 1: Spot G4</text>
+          <text x="668" y="271" fill="var(--text-secondary)" font-size="9" text-anchor="middle">60–91% Cost Discount</text>
+          <text x="668" y="288" fill="var(--text-secondary)" font-size="9" text-anchor="middle">2–3x MPS High-QPS Pods</text>
+          <text x="668" y="306" fill="var(--gc-green)" font-size="9" font-weight="700" text-anchor="middle">activeMigration: true</text>
+
+          <!-- Burst Inner Card 2: Priority 2 Flex-Start -->
+          <rect x="768" y="233" width="176" height="88" rx="6" fill="var(--svg-submask)" stroke="var(--gc-amber)" stroke-width="1.2" />
+          <text x="856" y="253" fill="var(--gc-amber)" font-size="10" font-weight="700" text-anchor="middle">Priority 2: Flex-Start</text>
+          <text x="856" y="271" fill="var(--text-secondary)" font-size="9" text-anchor="middle">DWS Queued G4 Nodes</text>
+          <text x="856" y="288" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Up to 50% Discount</text>
+          <text x="856" y="306" fill="var(--gc-amber)" font-size="9" font-weight="700" text-anchor="middle">Seamless Spot Fallback</text>
+
+          <!-- Burst Inner Card 3: 3-Layer Fast-Start -->
+          <rect x="956" y="233" width="168" height="88" rx="6" fill="var(--svg-submask)" stroke="var(--gc-blue)" stroke-width="1.2" />
+          <text x="1040" y="253" fill="var(--gc-blue)" font-size="10" font-weight="700" text-anchor="middle">3-Layer Fast-Start</text>
+          <text x="1040" y="271" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Secondary Boot Image</text>
+          <text x="1040" y="288" fill="var(--text-secondary)" font-size="9" text-anchor="middle">Hyperdisk VolSnapshot</text>
+          <text x="1040" y="306" fill="var(--gc-blue)" font-size="9" font-weight="700" text-anchor="middle">7.91s Ready + /dev/shm</text>
+
+          <!-- ================================================================
+               EXTERNAL LEGEND (STRICTLY BELOW Y=350 AT Y=364)
+               ================================================================ -->
+          <rect x="20" y="364" width="1140" height="44" rx="8" fill="var(--svg-mask)" stroke="var(--border-color)" stroke-width="1.2" />
+          <text x="36" y="390" fill="var(--text-primary)" font-size="10" font-weight="700">PATTERN 4 KEY:</text>
+
+          <rect x="138" y="379" width="16" height="14" rx="3" fill="var(--gc-green-fill)" stroke="var(--gc-green)" stroke-width="1.5" />
+          <text x="160" y="390" fill="var(--text-secondary)" font-size="9.5">Always-On On-Demand Baseline (100% SLA, 0ms Cold Start)</text>
+
+          <rect x="498" y="379" width="16" height="14" rx="3" fill="var(--gc-amber-fill)" stroke="var(--gc-amber)" stroke-width="1.5" />
+          <text x="520" y="390" fill="var(--text-secondary)" font-size="9.5">Elastic Spot + DWS Flex-Start Burst Pool (60–91% Savings)</text>
+
+          <rect x="862" y="379" width="16" height="14" rx="3" fill="var(--gc-purple-fill)" stroke="var(--gc-purple)" stroke-width="1.5" />
+          <text x="884" y="390" fill="var(--text-secondary)" font-size="9.5">HPA v2 Queue-Depth Autoscaling</text>
+        </svg>
+      </div>
+
+      <!-- SUBSECTION 3D: 4 PROVISIONING STRATEGIES COMPARISON TABLE -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>GKE G4 Provisioning Strategies Comparison (Patterns 1–4)</h3>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.15rem;">
+              How Pattern 4 combines the zero-cold-start availability of On-Demand with the deep FinOps savings of Spot and DWS Flex-Start.
+            </div>
+          </div>
+          <span class="pill pill-green">Pattern 4 Recommended for Production</span>
+        </div>
+
+        <table class="arch-table" aria-label="GKE G4 Provisioning Strategies Comparison">
+          <thead>
+            <tr>
+              <th>Provisioning Pattern</th>
+              <th>Primary G4 Capacity Tier</th>
+              <th>Discount vs. On-Demand</th>
+              <th>Cold-Start / Preemption Behavior</th>
+              <th>Best-Fit Workload Profile</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Pattern 1: Pure Spot + ComputeClass Waterfall</strong></td>
+              <td>Spot G4 → DWS Flex-Start → On-Demand</td>
+              <td><strong>60–91% off</strong> (Spot tier)</td>
+              <td><code>7.91 s</code> replacement via 3-Layer Snapshot + 45s graceful drain</td>
+              <td>Asynchronous batch catalog enrichment queues that tolerate brief capacity transitions.</td>
+            </tr>
+            <tr>
+              <td><strong>Pattern 2: DWS Flex-Start Queued Provisioning</strong></td>
+              <td><code>provisioningModel: FLEX_START</code></td>
+              <td><strong>Up to 50% off</strong></td>
+              <td>No Spot preemption once scheduled (up to 7-day node runtime)</td>
+              <td>Scheduled nightly/weekly multi-million SKU re-indexing and taxonomy backfills.</td>
+            </tr>
+            <tr>
+              <td><strong>Pattern 3: Pure On-Demand / 1–3yr CUD</strong></td>
+              <td>Dedicated On-Demand G4 Node Pool</td>
+              <td><strong>28–55% off</strong> (with CUDs)</td>
+              <td><code>0 ms</code> cold start; zero preemption risk</td>
+              <td>Strict-SLA synchronous APIs with flat, predictable 24/7 traffic volume.</td>
+            </tr>
+            <tr class="row-green">
+              <td><strong>Pattern 4: Hybrid On-Demand Baseline + Spot/DWS Burst</strong></td>
+              <td><strong>Baseline:</strong> 1× On-Demand (<code>g4-standard-24</code> / <code>-48</code>)<br><strong>Burst:</strong> Spot + DWS Flex-Start (<code>2–3× MPS</code>)</td>
+              <td><strong>55–80% blended savings</strong> across total fleet</td>
+              <td><strong><code>0 ms</code> cold start</strong> on baseline floor + <strong><code>7.91 s</code> elastic burst</strong> scale-out</td>
+              <td><strong>Enterprise Production Standard:</strong> Guarantees 100% live SLA while absorbing 10× merchant upload surges on Spot/DWS GPUs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         SECTION 4: INLINE SVG DIAGRAM #3 — HOW SYSTEM-1 DISCRETE DIFFUSION WORKS
          ====================================================================== -->
     <section id="diffusion-mechanics" class="section">
       <div class="section-header">
         <div class="eyebrow">
           <span class="pulse-dot" style="background:var(--gc-green)"></span>
-          <span>Architecture Blueprint #2 • Algorithmic &amp; Mathematical Mechanics</span>
+          <span>Architecture Blueprint #3 • Algorithmic &amp; Mathematical Mechanics</span>
         </div>
         <h2>How the System-1 Discrete Diffusion Engine (<code>DiffusionGemma 26B-A4B NVFP4</code>) Works</h2>
         <p class="lead">
@@ -1322,7 +1951,7 @@
     </section>
 
     <!-- ======================================================================
-         SECTION 4: INTERACTIVE RETAIL PRODUCT CATALOG ENRICHMENT SIMULATOR
+         SECTION 5: INTERACTIVE RETAIL PRODUCT CATALOG ENRICHMENT SIMULATOR
          ====================================================================== -->
     <section id="retail-simulator" class="section">
       <div class="section-header">
@@ -1386,6 +2015,16 @@
 
       <!-- Reference Links & Documentation Hub -->
       <div class="ref-grid" style="margin-top:2rem">
+        <a class="ref-card" href="dgem_bento_motion_explainer.html" target="_blank" rel="noopener">
+          <div class="ref-card-title">🎬 Bento Motion Board #1 — System-1 Diffusion Performance ↗</div>
+          <div class="ref-card-desc">Standalone 16:9 Studio Aluminum Bento Motion visual comparing Decision Gemma single-pass denoising (<code>57 ms</code>) against autoregressive decoding.</div>
+        </a>
+
+        <a class="ref-card" href="dgem_g4_scaling_bento_explainer.html" target="_blank" rel="noopener">
+          <div class="ref-card-title">🎬 Bento Motion Board #2 — G4 Sizing, MIG/MPS &amp; Pattern 4 ↗</div>
+          <div class="ref-card-desc">Standalone 16:9 Studio Aluminum Bento Motion visual for G4 fractional vGPU shapes, <code>2–3× MPS</code> vs. <code>MIG</code>, and Pattern 4 hybrid scaling.</div>
+        </a>
+
         <a class="ref-card" href="https://github.com/GoogleCloudPlatform/dgem" target="_blank" rel="noopener noreferrer">
           <div class="ref-card-title">📦 GoogleCloudPlatform/dgem Repository ↗</div>
           <div class="ref-card-desc">Reference implementation for <code>dgem serve</code>, <code>structured_server.py</code>, post-hoc temperature calibration (<code>dgem calibrate</code>), and 2-stage tournament brackets.</div>
@@ -1393,24 +2032,19 @@
 
         <a class="ref-card" href="https://cloud.google.com/kubernetes-engine/docs/how-to/gpus" target="_blank" rel="noopener noreferrer">
           <div class="ref-card-title">⚡ GKE G4 (<code>RTX PRO 6000 Blackwell</code>) GPUs ↗</div>
-          <div class="ref-card-desc">Official Google Kubernetes Engine documentation for <code>g4-standard-48</code> nodes, <code>nvidia-rtx-pro-6000</code> accelerators, and Custom ComputeClasses.</div>
-        </a>
-
-        <a class="ref-card" href="https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-5-flash-lite" target="_blank" rel="noopener noreferrer">
-          <div class="ref-card-title">🧠 Vertex AI <code>gemini-3.5-flash-lite</code> (Stage 2) ↗</div>
-          <div class="ref-card-desc">Low-latency, cost-efficient Stage 2 reasoning model for resolving the 15–25% of ambiguous or contradictory catalog slots flagged by the entropy gate.</div>
+          <div class="ref-card-desc">Official Google Kubernetes Engine documentation for <code>g4-standard-12</code> through <code>g4-standard-384</code>, MIG/MPS sharing, and Custom ComputeClasses.</div>
         </a>
       </div>
     </section>
 
     <footer class="footer">
       <div>Google Cloud GKE G4 &amp; Vertex AI Reference Architecture • System-1 Discrete Diffusion (<code>DiffusionGemma 26B-A4B NVFP4</code>)</div>
-      <div class="mono">57 ms p50 Stage 1 • 7.91 s Spot Fast-Start • Selective gemini-3.5-flash-lite Cascade</div>
+      <div class="mono">57 ms p50 Stage 1 • 7.91 s Spot Fast-Start • Pattern 4 Hybrid Baseline + Spot/DWS Burst</div>
     </footer>
   </main>
 
   <!-- ========================================================================
-       INLINE JAVASCRIPT FOR THEME SWITCHING & LIVE RETAIL SIMULATOR
+       INLINE JAVASCRIPT FOR SUITE THEME SYNC & LIVE RETAIL SIMULATOR
        ======================================================================== -->
   <script>
     const SCENARIOS = {
@@ -1605,22 +2239,53 @@
     let currentScenario = "merch";
     let currentSkuMode = "clear";
 
-    function toggleTheme() {
-      const html = document.documentElement;
-      const current = html.getAttribute("data-theme") || "dark";
-      const next = current === "dark" ? "light" : "dark";
-      html.setAttribute("data-theme", next);
+    function applyTheme(theme, persist = true) {
+      const normalized = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", normalized);
+      if (persist) {
+        try {
+          localStorage.setItem("dgem-theme", normalized);
+        } catch (e) {}
+      }
 
       const icon = document.getElementById("theme-icon");
       const label = document.getElementById("theme-label");
-      if (next === "light") {
-        icon.textContent = "🌙";
-        label.textContent = "Switch to Dark Mode";
-      } else {
-        icon.textContent = "☀️";
-        label.textContent = "Switch to Light Mode";
+      if (icon && label) {
+        if (normalized === "light") {
+          icon.textContent = "🌙";
+          label.textContent = "Switch to Dark Mode";
+        } else {
+          icon.textContent = "☀️";
+          label.textContent = "Switch to Light Mode";
+        }
       }
+
+      // Synchronize embedded Bento iframes if same-origin loaded
+      const iframes = document.querySelectorAll(".bento-iframe");
+      iframes.forEach((frame) => {
+        try {
+          if (frame.contentDocument && frame.contentDocument.documentElement) {
+            frame.contentDocument.documentElement.setAttribute("data-theme", normalized);
+          }
+          if (frame.contentWindow && typeof frame.contentWindow.applyTheme === "function") {
+            frame.contentWindow.applyTheme(normalized, false);
+          }
+        } catch (e) {}
+      });
     }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      const next = current === "dark" ? "light" : "dark";
+      applyTheme(next, true);
+    }
+
+    // Listen for cross-tab / cross-iframe localStorage theme changes
+    window.addEventListener("storage", (event) => {
+      if (event.key === "dgem-theme" && event.newValue) {
+        applyTheme(event.newValue, false);
+      }
+    });
 
     function selectScenario(scenarioKey) {
       currentScenario = scenarioKey;
@@ -1713,8 +2378,16 @@
       }
     }
 
-    // Initialize simulator on load
-    updateSimulator();
+    // Initialize theme & simulator on load
+    (function init() {
+      let initialTheme = "light";
+      try {
+        const saved = localStorage.getItem("dgem-theme");
+        if (saved === "dark" || saved === "light") initialTheme = saved;
+      } catch (e) {}
+      applyTheme(initialTheme, false);
+      updateSimulator();
+    })();
   </script>
 </body>
 </html>

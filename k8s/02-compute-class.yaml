@@ -1,5 +1,5 @@
 # GKE Secondary Boot Disk Resource Allowlist (node.gke.io/v1)
-# Reference: https://cloud.google.com/kubernetes-engine/docs/how-to/data-container-image-preloading
+# Verified against https://docs.cloud.google.com/kubernetes-engine/docs/how-to/data-container-image-preloading
 # Required by GKE Warden validating webhook before a ComputeClass can reference secondaryBootDisks.
 apiVersion: node.gke.io/v1
 kind: GCPResourceAllowlist
@@ -9,14 +9,17 @@ spec:
   allowedResourcePatterns:
     - "projects/${PROJECT_ID}/global/images/.*"
 ---
-# GKE Custom ComputeClass (cloud.google.com/v1):
-# Reference: https://cloud.google.com/kubernetes-engine/docs/reference/crds/computeclass
+# 1. Primary GKE Custom ComputeClass: dgem-g4-priority (cloud.google.com/v1)
+# Verified against:
+#   - https://docs.cloud.google.com/kubernetes-engine/docs/reference/crds/computeclass
+#   - https://docs.cloud.google.com/ai-hypercomputer/docs/create/gke-create-g2-g4
+# Used by both Pattern 1 (Scale-from-Zero Waterfall) and Pattern 4 (Elastic Burst Pool `dgem-engine-burst`).
 # Prioritizes:
-#   1. GKE Spot G4 (with Secondary Boot Disk CONTAINER_IMAGE_CACHE)
-#   2. DWS Flex-Start G4 (Queued Provisioning with up to 7-day non-preemptible duration)
-#   3. On-Demand G4 Fallback (eligible for GKE Fast-Starting Nodes when configured with
-#      bootDiskType: hyperdisk-balanced and zero Local SSDs per
-#      https://cloud.google.com/kubernetes-engine/docs/concepts/fast-starting-nodes#g4-requirements)
+#   1. GKE Spot G4 Full GPU (g4-standard-48: 1x RTX PRO 6000 96GB + Secondary Boot Disk)
+#   2. GKE Spot G4 Fractional 1/2 vGPU (g4-standard-24: 48GB GDDR7 + Secondary Boot Disk, requires GKE 1.35.8-gke.1518000+)
+#   3. DWS Flex-Start G4 (g4-standard-48 Queued Provisioning with up to 7-day non-preemptible duration)
+#   4. On-Demand G4 Full GPU Fallback (g4-standard-48, GKE Fast-Starting Nodes eligible: hyperdisk-balanced + no Local SSDs)
+#   5. On-Demand G4 Fractional 1/2 vGPU Fallback (g4-standard-24: 48GB GDDR7)
 # Automatically migrates back to Spot G4 when Spot capacity recovers (activeMigration.optimizeRulePriority: true).
 apiVersion: cloud.google.com/v1
 kind: ComputeClass
@@ -24,7 +27,7 @@ metadata:
   name: dgem-g4-priority
 spec:
   priorities:
-    # Priority 1: GKE Spot G4 with Fast-Start Secondary Boot Disk
+    # Priority 1: GKE Spot G4 Full GPU (g4-standard-48, 96 GB GDDR7) with Fast-Start Secondary Boot Disk
     - machineType: g4-standard-48
       spot: true
       gpu:
@@ -38,7 +41,21 @@ spec:
           - diskImageName: dgem-g4-image-cache
             project: ${PROJECT_ID}
             mode: CONTAINER_IMAGE_CACHE
-    # Priority 2: DWS Flex-Start G4 (Queued Provisioning fallback)
+    # Priority 2: GKE Spot G4 Fractional 1/2 vGPU (g4-standard-24, 48 GB GDDR7)
+    - machineType: g4-standard-24
+      spot: true
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    # Priority 3: DWS Flex-Start G4 (Queued Provisioning fallback, non-preemptible up to 7 days)
     - machineType: g4-standard-48
       flexStart:
         enabled: true
@@ -55,13 +72,140 @@ spec:
           - diskImageName: dgem-g4-image-cache
             project: ${PROJECT_ID}
             mode: CONTAINER_IMAGE_CACHE
-    # Priority 3: On-Demand G4 Fallback (GKE Fast-Starting Nodes eligible: hyperdisk-balanced + zero Local SSDs)
+    # Priority 4: On-Demand G4 Full GPU Fallback (GKE Fast-Starting Nodes eligible: hyperdisk-balanced + no Local SSDs)
     - machineType: g4-standard-48
       spot: false
       gpu:
         type: nvidia-rtx-pro-6000
         count: 1
         driverVersion: latest
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    # Priority 5: On-Demand G4 Fractional 1/2 vGPU Fallback (g4-standard-24, 48 GB GDDR7)
+    - machineType: g4-standard-24
+      spot: false
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+  activeMigration:
+    optimizeRulePriority: true
+---
+# 2. Multi-Instance NVIDIA MPS ComputeClass: dgem-g4-mps-priority
+# Verified against https://docs.cloud.google.com/kubernetes-engine/docs/reference/crds/computeclass#gpuSharing
+# Shares 1x 96 GB NVIDIA RTX PRO 6000 on g4-standard-48 across 2 dgem-engine replicas (48 GB pinned VRAM each)
+# for 1.4x-1.7x higher batch throughput. (Note: MPS is only supported on >=1 GPU G4 shapes, not fractional vGPUs).
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: dgem-g4-mps-priority
+spec:
+  priorities:
+    - machineType: g4-standard-48
+      spot: true
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+        gpuSharing:
+          sharingStrategy: MPS
+          maxSharedClientsPerGPU: 2
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    - machineType: g4-standard-48
+      flexStart:
+        enabled: true
+      maxRunDurationSeconds: 604800
+      capacityCheckWaitTimeSeconds: 300
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+        gpuSharing:
+          sharingStrategy: MPS
+          maxSharedClientsPerGPU: 2
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    - machineType: g4-standard-48
+      spot: false
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+        gpuSharing:
+          sharingStrategy: MPS
+          maxSharedClientsPerGPU: 2
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+  nodePoolAutoCreation:
+    enabled: true
+  whenUnsatisfiable: DoNotScaleUp
+  activeMigration:
+    optimizeRulePriority: true
+---
+# 3. Hardware Multi-Instance GPU (MIG) ComputeClass: dgem-g4-mig-priority
+# Verified against https://docs.cloud.google.com/kubernetes-engine/docs/how-to/gpus-multi
+# Partitions 1x 96 GB NVIDIA RTX PRO 6000 on g4-standard-48 into 2 hardware-isolated 2g.48gb slices
+# for strict p99 SLA isolation across tenants/deployments.
+apiVersion: cloud.google.com/v1
+kind: ComputeClass
+metadata:
+  name: dgem-g4-mig-priority
+spec:
+  priorities:
+    - machineType: g4-standard-48
+      spot: true
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+        gpuSharing:
+          gpuPartitionSize: 2g.48gb
+      storage:
+        bootDiskType: hyperdisk-balanced
+        bootDiskSize: 200
+        secondaryBootDisks:
+          - diskImageName: dgem-g4-image-cache
+            project: ${PROJECT_ID}
+            mode: CONTAINER_IMAGE_CACHE
+    - machineType: g4-standard-48
+      spot: false
+      gpu:
+        type: nvidia-rtx-pro-6000
+        count: 1
+        driverVersion: latest
+        gpuSharing:
+          gpuPartitionSize: 2g.48gb
       storage:
         bootDiskType: hyperdisk-balanced
         bootDiskSize: 200

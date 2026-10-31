@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decision Gemma (DGEM) on GKE G4 — Sizing, MIG/MPS & Pattern 4 Hybrid Scaling</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* 70 / 20 / 10 Studio Aluminum Bento Motion Palette (Default Light Mode) */
+      --bg-page: #CBD3DF;
+      --bg-canvas: #DCE2EA;
+      --card-grad-start: #F8FAFC;
+      --card-grad-mid: #EEF2F6;
+      --card-grad-end: #E3E8F0;
+      --card-border-outer: rgba(148, 163, 184, 0.25);
+      --card-shadow:
+        0 10px 28px -8px rgba(15, 23, 42, 0.07),
+        0 2px 6px -1px rgba(15, 23, 42, 0.04),
+        inset 0 1.5px 0 0 rgba(255, 255, 255, 0.92);
+      --subtray-bg: rgba(255, 255, 255, 0.54);
+      --subtray-border: rgba(255, 255, 255, 0.85);
+      --checklist-row-bg: rgba(255, 255, 255, 0.80);
+      --checklist-row-border: rgba(255, 255, 255, 0.95);
+      --pill-surface: rgba(255, 255, 255, 0.88);
+      --win-bg: #FFFFFF;
+      --win-titlebar: #F1F5F9;
+      --win-border: #E2E8F0;
+      --tile-bg: #F8FAFC;
+      --tile-border: #BFDBFE;
+
+      /* 20% Ink & Neutral Slate Baselines */
+      --text-ink: #1B2028;
+      --text-secondary: #5A6577;
+      --text-muted: #7B8698;
+      --neutral-slot: #CFD7E3;
+
+      /* 10% Electric Cobalt & Specular Cyan Accents */
+      --hero-blue: #2563EB;
+      --hero-blue-dark: #1D4ED8;
+      --hero-cyan-glint: #60A5FA;
+      --hero-cyan-bright: #93C5FD;
+
+      /* Typography */
+      --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html[data-theme="dark"] {
+      --bg-page: #060911;
+      --bg-canvas: #0B0F19;
+      --card-grad-start: #1E293B;
+      --card-grad-mid: #161F33;
+      --card-grad-end: #0F172A;
+      --card-border-outer: rgba(148, 163, 184, 0.18);
+      --card-shadow:
+        0 14px 32px -8px rgba(0, 0, 0, 0.45),
+        0 2px 6px -1px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+      --subtray-bg: rgba(15, 23, 42, 0.56);
+      --subtray-border: rgba(148, 163, 184, 0.16);
+      --checklist-row-bg: rgba(15, 23, 42, 0.68);
+      --checklist-row-border: rgba(148, 163, 184, 0.18);
+      --pill-surface: rgba(30, 41, 59, 0.90);
+      --win-bg: #0F172A;
+      --win-titlebar: #1E293B;
+      --win-border: #334155;
+      --tile-bg: #1E293B;
+      --tile-border: rgba(59, 130, 246, 0.35);
+      --text-ink: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
+      --neutral-slot: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-page);
+      font-family: var(--font-sans);
+      color: var(--text-ink);
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      overflow: hidden;
+      user-select: none;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    /* Shared Top Suite Navigation Bar (34px compact, auto-hidden in fullscreen) */
+    .top-suite-nav {
+      width: min(97vw, calc(91vh * (16 / 9)));
+      height: 34px;
+      background: var(--pill-surface);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border-outer);
+      border-radius: 999px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+      z-index: 90;
+      flex-shrink: 0;
+    }
+
+    .suite-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .suite-nav-brand {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--hero-blue);
+      padding-right: 8px;
+      border-right: 1px solid var(--card-border-outer);
+      white-space: nowrap;
+    }
+
+    .suite-nav-link {
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: 999px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .suite-nav-link:hover {
+      color: var(--text-ink);
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    .suite-nav-link.active {
+      color: #FFFFFF;
+      background: var(--hero-blue);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+    }
+
+    .theme-toggle-btn {
+      background: rgba(37, 99, 235, 0.10);
+      color: var(--text-ink);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      border-radius: 999px;
+      padding: 4px 11px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    :fullscreen .top-suite-nav {
+      display: none;
+    }
+
+    /* 16:9 Locked Aspect-Ratio Bento Stage */
+    .stage-wrapper {
+      position: relative;
+      width: min(97vw, calc(91vh * (16 / 9)));
+      aspect-ratio: 16 / 9;
+      background: var(--bg-canvas);
+      border-radius: 28px;
+      padding: 1.85%;
+      box-shadow:
+        0 28px 65px -15px rgba(15, 23, 42, 0.20),
+        0 0 0 1px rgba(255, 255, 255, 0.45);
+      display: flex;
+      flex-direction: column;
+    }
+
+    html.embedded-mode .top-suite-nav {
+      display: none !important;
+    }
+
+    html.embedded-mode,
+    html.embedded-mode body {
+      background: transparent;
+    }
+
+    html.embedded-mode .stage-wrapper {
+      width: 100vw;
+      height: 100vh;
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 22px;
+      box-shadow: none;
+    }
+
+    /* 12-Column × 2-Row Asymmetric Bento Grid (7 Cards) */
+    .bento-grid {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      grid-template-rows: 51.5% 46.2%;
+      gap: 1.15%;
+    }
+
+    .bento-card {
+      position: relative;
+      background: linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 54%, var(--card-grad-end) 100%);
+      border-radius: 22px;
+      border: 1px solid var(--card-border-outer);
+      box-shadow: var(--card-shadow);
+      padding: clamp(16px, 1.5vw, 25px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-1 { grid-column: span 3; grid-row: 1; }
+    .card-2 { grid-column: span 3; grid-row: 1; }
+    .card-3 { grid-column: span 6; grid-row: 1; }
+    .card-4 { grid-column: span 3; grid-row: 2; }
+    .card-5 { grid-column: span 3; grid-row: 2; }
+    .card-6 { grid-column: span 3; grid-row: 2; }
+    .card-7 { grid-column: span 3; grid-row: 2; }
+
+    /* Shared Typography Tokens */
+    .kpi-giant {
+      font-family: var(--font-display);
+      font-size: clamp(32px, 3.3vw, 54px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.98;
+      color: var(--text-ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-subtitle {
+      font-size: clamp(11px, 0.90vw, 14.5px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.30;
+      letter-spacing: -0.01em;
+      margin-top: 5px;
+    }
+
+    .card-title-mid {
+      font-family: var(--font-display);
+      font-size: clamp(16px, 1.45vw, 23.5px);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--text-ink);
+      line-height: 1.15;
+    }
+
+    /* ============================================================================
+       CARD 1: GOOGLE CLOUD GKE G4 FLEET & PATTERN 4 HYBRID PEDESTAL
+       ============================================================================ */
+    .card-1 {
+      align-items: center;
+      justify-content: space-between;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 36%, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0) 68%),
+        linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 55%, var(--card-grad-end) 100%);
+    }
+
+    .gcp-brand-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .gcp-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--pill-surface);
+      border: 1px solid var(--card-border-outer);
+      box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+      font-size: clamp(9.2px, 0.70vw, 11.2px);
+      font-weight: 700;
+      color: var(--text-ink);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .dgem-tag-pill {
+      font-family: var(--font-mono);
+      font-size: clamp(8.8px, 0.64vw, 10.8px);
+      font-weight: 700;
+      color: var(--hero-blue);
+      background: rgba(37, 99, 235, 0.10);
+      border: 1px solid rgba(37, 99, 235, 0.22);
+      padding: 3px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pedestal-stage {
+      width: 100%;
+      height: 52%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .pedestal-stage svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    @keyframes coreFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @keyframes horizonPulse {
+      0%, 100% { opacity: 0.80; }
+      50% { opacity: 1; }
+    }
+
+    .floating-cloud-core {
+      animation: coreFloat 3.6s ease-in-out infinite;
+    }
+
+    .horizon-glow-line {
+      animation: horizonPulse 2.8s ease-in-out infinite;
+    }
+
+    .hero-identity-copy {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .hero-model-name {
+      font-family: var(--font-display);
+      font-size: clamp(21px, 2.05vw, 33px);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      color: var(--text-ink);
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    .hero-model-arch {
+      font-size: clamp(10px, 0.80vw, 12.6px);
+      font-weight: 600;
+      color: var(--hero-blue);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .hero-model-hw {
+      font-size: clamp(9.5px, 0.72vw, 11.6px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .hero-spec-pills {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 4px;
+      flex-wrap: nowrap;
+    }
+
+    .spec-micro-chip {
+      font-family: var(--font-mono);
+      font-size: clamp(8.2px, 0.60vw, 9.8px);
+      font-weight: 600;
+      color: var(--text-ink);
+      background: var(--pill-surface);
+      border: 1px solid var(--card-border-outer);
+      padding: 2px 6.5px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* ============================================================================
+       CARD 2 & CARD 4: ISOMETRIC 3D PRISM & WIREFRAME CAPACITY TANK
+       ============================================================================ */
+    .iso-chart-wrap {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      position: relative;
+      margin-top: 2px;
+    }
+
+    .iso-chart-wrap svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* ============================================================================
+       CARD 3: WIDE REAL-TIME PATTERN 4 AUTOSCALER & ROUTER (COLS 7-12)
+       ============================================================================ */
+    .card-3 {
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 3.2%;
+      background:
+        radial-gradient(circle at 74% 52%, rgba(37, 99, 235, 0.10) 0%, rgba(37, 99, 235, 0) 68%),
+        linear-gradient(155deg, var(--card-grad-start) 0%, var(--card-grad-mid) 55%, var(--card-grad-end) 100%);
+    }
+
+    .c3-left-column {
+      width: 41%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+
+    .c3-arch-summary-pill {
+      margin: auto 0;
+      background: var(--subtray-bg);
+      border: 1px solid var(--card-border-outer);
+      border-radius: 12px;
+      padding: 9px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .c3-arch-pill-title {
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.65vw, 10.5px);
+      font-weight: 700;
+      color: var(--hero-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .c3-arch-pill-desc {
+      font-size: clamp(9.5px, 0.74vw, 12px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.3;
+    }
+
+    .c3-counter-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .c3-live-turn-line {
+      font-size: clamp(11.5px, 0.95vw, 15px);
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .c3-live-turn-num {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(20px, 1.6vw, 26px);
+      color: var(--text-ink);
+      font-variant-numeric: tabular-nums;
+      display: inline-block;
+      transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease;
+    }
+
+    .c3-live-turn-num.bump {
+      transform: translateY(-3px) scale(1.06);
+      color: var(--hero-blue);
+    }
+
+    .c3-progress-rail {
+      width: 100%;
+      height: 7px;
+      background: var(--neutral-slot);
+      border-radius: 999px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .c3-progress-bar {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, var(--hero-blue-dark) 0%, var(--hero-blue) 65%, var(--hero-cyan-glint) 100%);
+      border-radius: 999px;
+    }
+
+    .c3-progress-meta {
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.65vw, 10.6px);
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      white-space: nowrap;
+    }
+
+    /* Right Side Floating Miniature Telemetry Window */
+    .c3-right-window-wrap {
+      width: 59%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sim-window {
+      width: 100%;
+      background: var(--win-bg);
+      border-radius: 16px;
+      border: 1px solid var(--card-border-outer);
+      box-shadow:
+        0 18px 36px -10px rgba(15, 23, 42, 0.14),
+        0 2px 6px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sim-win-titlebar {
+      height: 30px;
+      background: var(--win-titlebar);
+      border-bottom: 1px solid var(--win-border);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .win-dots {
+      display: flex;
+      gap: 5.5px;
+    }
+
+    .win-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #CBD5E1;
+    }
+
+    .win-dot.d1 { background: #FDA4AF; }
+    .win-dot.d2 { background: #FCD34D; }
+    .win-dot.d3 { background: #6EE7B7; }
+
+    .win-title-label {
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.64vw, 10.6px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .win-pass-badge {
+      font-family: var(--font-mono);
+      font-size: clamp(8px, 0.58vw, 9.6px);
+      font-weight: 700;
+      color: var(--hero-blue);
+      background: rgba(37, 99, 235, 0.10);
+      padding: 2px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .win-scanline {
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      height: 2.5px;
+      width: 38%;
+      background: linear-gradient(90deg, transparent, var(--hero-blue), var(--hero-cyan-glint), transparent);
+      transform: translateX(0%);
+    }
+
+    .sim-win-body {
+      padding: clamp(11px, 1.05vw, 16px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--win-bg);
+    }
+
+    .sku-context-bar {
+      background: var(--win-titlebar);
+      border: 1px solid var(--win-border);
+      border-radius: 9px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .sku-title-text {
+      font-family: var(--font-mono);
+      font-size: clamp(8.6px, 0.66vw, 10.8px);
+      font-weight: 600;
+      color: var(--text-ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sku-mask-tag {
+      font-family: var(--font-mono);
+      font-size: clamp(8px, 0.58vw, 9.5px);
+      font-weight: 700;
+      color: #0369A1;
+      background: #E0F2FE;
+      padding: 2.5px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .canvas-mask-strip {
+      background: rgba(37, 99, 235, 0.08);
+      border: 1px dashed #93C5FD;
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: clamp(8px, 0.60vw, 9.8px);
+      color: var(--hero-blue);
+      white-space: nowrap;
+    }
+
+    .canvas-mask-tokens {
+      font-weight: 700;
+      color: var(--hero-blue);
+    }
+
+    .slot-grid-2x2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .slot-tile {
+      background: var(--tile-bg);
+      border: 1px solid var(--tile-border);
+      border-radius: 9px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slot-tile-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .slot-key {
+      font-family: var(--font-mono);
+      font-size: clamp(8.0px, 0.60vw, 9.8px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .slot-val {
+      font-family: var(--font-mono);
+      font-size: clamp(8.2px, 0.62vw, 10.2px);
+      font-weight: 700;
+      color: var(--hero-blue);
+      background: rgba(37, 99, 235, 0.11);
+      padding: 1.5px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .slot-conf-bar {
+      width: 100%;
+      height: 4.5px;
+      background: rgba(59, 130, 246, 0.20);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .slot-conf-fill {
+      height: 100%;
+      width: 96%;
+      background: var(--hero-blue);
+      border-radius: 999px;
+    }
+
+    .sim-win-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid var(--win-border);
+    }
+
+    .entropy-gate-readout {
+      font-family: var(--font-mono);
+      font-size: clamp(8.2px, 0.62vw, 10px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .entropy-gate-readout strong {
+      color: #059669;
+    }
+
+    .commit-action-btn {
+      position: relative;
+      background: var(--hero-blue);
+      color: #FFFFFF;
+      font-size: clamp(8.5px, 0.64vw, 10.5px);
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.30);
+      white-space: nowrap;
+    }
+
+    .commit-pulse-ring {
+      position: absolute;
+      inset: -5px;
+      border-radius: 999px;
+      border: 2px solid var(--hero-cyan-glint);
+      opacity: 0;
+      transform: scale(0.88);
+      pointer-events: none;
+    }
+
+    .commit-pulse-ring.active {
+      animation: ringPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes ringPop {
+      0% { opacity: 0.95; transform: scale(0.90); }
+      100% { opacity: 0; transform: scale(1.38); }
+    }
+
+    /* ============================================================================
+       CARD 5: 3-ROW USE-CASE EXECUTION STRATEGY CHECKLIST (COLS 4-6, ROW 2)
+       ============================================================================ */
+    .card-5 {
+      justify-content: space-between;
+    }
+
+    .c5-gate-pill {
+      align-self: center;
+      font-family: var(--font-mono);
+      font-size: clamp(8.5px, 0.64vw, 10.4px);
+      font-weight: 600;
+      color: var(--hero-blue);
+      background: rgba(37, 99, 235, 0.09);
+      border: 1px solid rgba(37, 99, 235, 0.22);
+      padding: 4px 11px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .checklist-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .checklist-row {
+      background: var(--checklist-row-bg);
+      border: 1px solid var(--checklist-row-border);
+      border-radius: 12px;
+      padding: clamp(9px, 0.85vw, 13px) clamp(11px, 0.95vw, 15px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+    }
+
+    .checklist-row-label {
+      font-size: clamp(10.2px, 0.82vw, 13.2px);
+      font-weight: 600;
+      color: var(--text-ink);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .checklist-row.muted-row .checklist-row-label {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .status-badge-circle {
+      width: clamp(20px, 1.45vw, 24px);
+      height: clamp(20px, 1.45vw, 24px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .status-badge-circle.pass {
+      background: var(--hero-blue);
+      color: #FFFFFF;
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.32);
+    }
+
+    .status-badge-circle.block {
+      background: var(--neutral-slot);
+      color: var(--text-secondary);
+    }
+
+    /* ============================================================================
+       CARD 6: SCALE-OUT READINESS WAFFLE GRID RACE (COLS 7-9, ROW 2)
+       ============================================================================ */
+    .card-6 {
+      justify-content: space-between;
+    }
+
+    .waffle-comparison-stack {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 1.15vw, 18px);
+    }
+
+    .waffle-model-block {
+      background: var(--subtray-bg);
+      border: 1px solid var(--subtray-border);
+      border-radius: 13px;
+      padding: clamp(8px, 0.8vw, 12px);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .waffle-header-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: clamp(10.2px, 0.82vw, 13.2px);
+      white-space: nowrap;
+    }
+
+    .waffle-model-title {
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .waffle-model-title.hero {
+      font-weight: 700;
+      color: var(--text-ink);
+    }
+
+    .waffle-step-count {
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: var(--text-ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .waffle-step-count.hero {
+      color: var(--hero-blue);
+    }
+
+    .waffle-grid-13x3 {
+      display: grid;
+      grid-template-columns: repeat(13, 1fr);
+      gap: 4px;
+    }
+
+    .waffle-cell {
+      aspect-ratio: 1.15 / 1;
+      border-radius: 3.5px;
+      background: var(--neutral-slot);
+      transition: background-color 0.14s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .waffle-cell.ghost {
+      background: rgba(148, 163, 184, 0.25);
+    }
+
+    .waffle-cell.active-hero {
+      background: var(--hero-blue);
+      box-shadow: 0 0 6px rgba(37, 99, 235, 0.38);
+    }
+
+    .waffle-cell.active-base {
+      background: #3B82F6;
+    }
+
+    /* ============================================================================
+       CARD 7: G4 MACHINE VRAM & INSTANCE PACKING MATRIX (COLS 10-12, ROW 2)
+       ============================================================================ */
+    .card-7 {
+      justify-content: space-between;
+    }
+
+    .quant-centered-header {
+      text-align: center;
+    }
+
+    .quant-title-big {
+      font-family: var(--font-display);
+      font-size: clamp(21px, 1.9vw, 30px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-ink);
+      line-height: 1.06;
+    }
+
+    .quant-matrix-rows {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(11px, 1.05vw, 16px);
+    }
+
+    .quant-row {
+      background: var(--subtray-bg);
+      border: 1px solid var(--subtray-border);
+      border-radius: 12px;
+      padding: clamp(8px, 0.78vw, 12px) clamp(10px, 0.85vw, 13px);
+      display: grid;
+      grid-template-columns: 52px 1fr 60px;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .quant-bit-label {
+      font-size: clamp(10.2px, 0.82vw, 13px);
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .quant-bit-label.hero {
+      font-weight: 800;
+      color: var(--text-ink);
+    }
+
+    .quant-gib-label {
+      font-family: var(--font-mono);
+      font-size: clamp(9.2px, 0.70vw, 11.2px);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .quant-gib-label.hero {
+      color: var(--hero-blue);
+      font-weight: 700;
+    }
+
+    .quant-pill-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3.5px;
+      width: 100%;
+    }
+
+    .quant-pill-group.compress-4bit {
+      width: 26%;
+      transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .quant-pill-track {
+      display: grid;
+      gap: 2.5px;
+      height: clamp(9px, 0.75vw, 12px);
+    }
+
+    .quant-pill {
+      border-radius: 3px;
+      background: #94A3B8;
+    }
+
+    .quant-pill.hero-pill {
+      background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.28);
+    }
+
+    /* ============================================================================
+       MINIMAL FLOATING DIRECTOR BAR (HIDDEN IN FULLSCREEN FOR CLEAN VIDEO CAPTURE)
+       ============================================================================ */
+    .director-hud {
+      position: fixed;
+      bottom: 10px;
+      right: 18px;
+      background: rgba(15, 23, 42, 0.86);
+      backdrop-filter: blur(10px);
+      color: #F8FAFC;
+      padding: 5px 12px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+      z-index: 100;
+    }
+
+    .hud-btn {
+      background: rgba(255, 255, 255, 0.12);
+      color: #F8FAFC;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    .hud-clock {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: #93C5FD;
+      min-width: 74px;
+      text-align: center;
+    }
+
+    :fullscreen .director-hud {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Unified Suite Navigation & Theme Bar -->
+  <header class="top-suite-nav" aria-label="Decision Gemma Visual Suite Navigation">
+    <div class="suite-nav-links">
+      <span class="suite-nav-brand">DGEM · GKE G4 SUITE</span>
+      <a class="suite-nav-link" href="dgem_bento_motion_explainer.html">Bento 1: System-1 Diffusion KPIs</a>
+      <a class="suite-nav-link active" href="dgem_g4_scaling_bento_explainer.html">Bento 2: G4 Sizing, MIG/MPS &amp; Pattern 4</a>
+      <a class="suite-nav-link" href="dgem_system1_architecture_explainer.html">Full Architecture &amp; Deployment Studio</a>
+    </div>
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button">☀️ Studio Aluminum (Light)</button>
+  </header>
+
+  <main class="stage-wrapper" id="bentoStage">
+    <div class="bento-grid">
+
+      <!-- ====================================================================
+           CARD 1 (TOP-LEFT): GOOGLE CLOUD GKE G4 FLEET & PATTERN 4 PEDESTAL
+           ==================================================================== -->
+      <section class="bento-card card-1" aria-label="Google Cloud GKE G4 Fleet Identity">
+        <div class="gcp-brand-header">
+          <span class="gcp-pill">
+            <svg width="15" height="12" viewBox="0 0 24 20" fill="none" aria-hidden="true">
+              <path d="M15.1 4.2L17.9 1.4C16.2 0.5 14.2 0 12 0C7.4 0 3.5 2.6 1.6 6.5L5.7 9.7C6.7 6.8 9.1 4.8 12 4.8C13.1 4.8 14.2 4.6 15.1 4.2Z" fill="#EA4335"/>
+              <path d="M21.8 9.2C21.1 6.7 19.6 4.5 17.6 3.1L14.7 6.0C16.4 7.1 17.6 9.0 17.6 11.2V12.0C19.4 12.0 20.8 13.4 20.8 15.2C20.8 17.0 19.4 18.4 17.6 18.4H6.4C4.2 18.4 2.4 16.6 2.4 14.4C2.4 12.5 3.7 10.9 5.5 10.5L1.5 7.4C0.5 9.4 0 11.8 0 14.4C0 17.5 2.5 20 5.6 20H17.6C21.1 20 24 17.1 24 13.6C24 11.6 23.1 9.9 21.8 9.2Z" fill="#4285F4"/>
+              <path d="M5.6 18.4H12V14.4H6.4C5.7 14.4 5.1 14.1 4.6 13.7L1.5 16.8C2.6 17.8 4.0 18.4 5.6 18.4Z" fill="#34A853"/>
+              <path d="M6.4 10.4C4.2 10.4 2.4 12.2 2.4 14.4C2.4 15.6 2.9 16.7 3.8 17.4L6.7 14.5C6.2 14.2 6.0 13.7 6.0 13.1C6.0 12.2 6.7 11.5 7.6 11.5L6.4 10.4Z" fill="#FBBC05"/>
+            </svg>
+            Google Cloud · GKE 1.35+
+          </span>
+          <span class="dgem-tag-pill">G4 · RTX PRO 6000</span>
+        </div>
+
+        <!-- Studio Pedestal + 3D Pattern 4 Hybrid Anchor & Spot/DWS Burst Cluster -->
+        <div class="pedestal-stage">
+          <svg viewBox="0 0 280 150" fill="none" role="img" aria-label="GKE G4 Pattern 4 On-Demand Anchor and Elastic Spot Burst Cluster on Studio Pedestal">
+            <defs>
+              <linearGradient id="pedestalTop" x1="40" y1="110" x2="240" y2="126" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#334155"/>
+                <stop offset="50%" stop-color="#1E293B"/>
+                <stop offset="100%" stop-color="#0F172A"/>
+              </linearGradient>
+              <linearGradient id="pedestalFront" x1="25" y1="123" x2="255" y2="136" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1E293B"/>
+                <stop offset="50%" stop-color="#0F172A"/>
+                <stop offset="100%" stop-color="#1E293B"/>
+              </linearGradient>
+              <linearGradient id="cyanHorizon" x1="35" y1="124" x2="245" y2="124" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#38BDF8" stop-opacity="0"/>
+                <stop offset="22%" stop-color="#38BDF8" stop-opacity="0.88"/>
+                <stop offset="50%" stop-color="#BAE6FD" stop-opacity="1"/>
+                <stop offset="78%" stop-color="#2563EB" stop-opacity="0.88"/>
+                <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="coreTop" x1="100" y1="18" x2="180" y2="52" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#93C5FD"/>
+                <stop offset="100%" stop-color="#3B82F6"/>
+              </linearGradient>
+              <linearGradient id="coreLeft" x1="95" y1="38" x2="140" y2="104" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#3B82F6"/>
+                <stop offset="100%" stop-color="#1D4ED8"/>
+              </linearGradient>
+              <linearGradient id="coreRight" x1="140" y1="38" x2="185" y2="104" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1D4ED8"/>
+                <stop offset="100%" stop-color="#1E3A8A"/>
+              </linearGradient>
+              <linearGradient id="cloudGlass" x1="90" y1="20" x2="190" y2="96" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.97"/>
+                <stop offset="100%" stop-color="#E2E8F0" stop-opacity="0.92"/>
+              </linearGradient>
+              <filter id="softPedestalGlow" x="-20%" y="-20%" width="140%" height="150%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+              </filter>
+            </defs>
+
+            <ellipse cx="140" cy="135" rx="96" ry="8" fill="#2563EB" opacity="0.16" filter="url(#softPedestalGlow)"/>
+            <ellipse cx="140" cy="120" rx="68" ry="5.5" fill="#0F172A" opacity="0.22"/>
+
+            <!-- Chamfered Studio Hardware Pedestal Shelf -->
+            <polygon points="46,112 234,112 252,123 28,123" fill="url(#pedestalTop)" stroke="#64748B" stroke-width="0.8"/>
+            <rect x="28" y="123" width="224" height="9" rx="3" fill="url(#pedestalFront)"/>
+            <rect class="horizon-glow-line" x="34" y="122.5" width="212" height="2.6" rx="1.3" fill="url(#cyanHorizon)"/>
+
+            <!-- Floating 3D Pattern 4 Cluster: 1x On-Demand Anchor + 2x Spot/DWS Burst Blocks -->
+            <g class="floating-cloud-core">
+              <!-- Left Elastic Spot Burst Block -->
+              <polygon points="58,50 90,36 114,47 82,61" fill="#BAE6FD" stroke="#E0F2FE" stroke-width="0.7"/>
+              <polygon points="58,50 82,61 82,94 58,83" fill="#38BDF8" opacity="0.92"/>
+              <polygon points="82,61 114,47 114,80 82,94" fill="#0284C7" opacity="0.92"/>
+
+              <!-- Right Elastic DWS Flex-Start Burst Block -->
+              <polygon points="166,47 190,36 222,50 198,61" fill="#BAE6FD" stroke="#E0F2FE" stroke-width="0.7"/>
+              <polygon points="166,47 198,61 198,94 166,80" fill="#38BDF8" opacity="0.92"/>
+              <polygon points="198,61 222,50 222,83 198,94" fill="#0284C7" opacity="0.92"/>
+
+              <!-- Center Hero 1x On-Demand Baseline Anchor Block -->
+              <polygon points="140,12 184,31 140,50 96,31" fill="url(#coreTop)" stroke="#DBEAFE" stroke-width="1"/>
+              <polygon points="96,31 140,50 140,105 96,86" fill="url(#coreLeft)" stroke="#93C5FD" stroke-width="0.8"/>
+              <polygon points="140,50 184,31 184,86 140,105" fill="url(#coreRight)" stroke="#60A5FA" stroke-width="0.8"/>
+              <polygon points="114,39 123,43 123,98 114,94" fill="#BAE6FD" opacity="0.55"/>
+
+              <!-- Sculpted 3D Google Cloud Medallion -->
+              <rect x="105" y="40" width="70" height="45" rx="13" fill="url(#cloudGlass)" stroke="#FFFFFF" stroke-width="1.5"/>
+              <g transform="translate(122, 48) scale(1.48)">
+                <path d="M15.1 4.2L17.9 1.4C16.2 0.5 14.2 0 12 0C7.4 0 3.5 2.6 1.6 6.5L5.7 9.7C6.7 6.8 9.1 4.8 12 4.8C13.1 4.8 14.2 4.6 15.1 4.2Z" fill="#EA4335"/>
+                <path d="M21.8 9.2C21.1 6.7 19.6 4.5 17.6 3.1L14.7 6.0C16.4 7.1 17.6 9.0 17.6 11.2V12.0C19.4 12.0 20.8 13.4 20.8 15.2C20.8 17.0 19.4 18.4 17.6 18.4H6.4C4.2 18.4 2.4 16.6 2.4 14.4C2.4 12.5 3.7 10.9 5.5 10.5L1.5 7.4C0.5 9.4 0 11.8 0 14.4C0 17.5 2.5 20 5.6 20H17.6C21.1 20 24 17.1 24 13.6C24 11.6 23.1 9.9 21.8 9.2Z" fill="#4285F4"/>
+                <path d="M5.6 18.4H12V14.4H6.4C5.7 14.4 5.1 14.1 4.6 13.7L1.5 16.8C2.6 17.8 4.0 18.4 5.6 18.4Z" fill="#34A853"/>
+                <path d="M6.4 10.4C4.2 10.4 2.4 12.2 2.4 14.4C2.4 15.6 2.9 16.7 3.8 17.4L6.7 14.5C6.2 14.2 6.0 13.7 6.0 13.1C6.0 12.2 6.7 11.5 7.6 11.5L6.4 10.4Z" fill="#FBBC05"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+
+        <div class="hero-identity-copy">
+          <h1 class="hero-model-name">GKE G4 Fleet</h1>
+          <div class="hero-model-arch">vGPU (24/48 GB) · MIG · NVIDIA MPS (96 GB)</div>
+          <div class="hero-model-hw">Pattern 4: 1× On-Demand Anchor + Spot/DWS Burst</div>
+          <div class="hero-spec-pills">
+            <span class="spec-micro-chip">g4-standard-12/24/48</span>
+            <span class="spec-micro-chip">2g.48gb MIG</span>
+            <span class="spec-micro-chip">2-3× MPS</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 2 (TOP-CENTER): 1.6x BATCH THROUGHPUT WITH 2-3x NVIDIA MPS
+           ==================================================================== -->
+      <section class="bento-card card-2" aria-label="1.6x Higher Throughput with NVIDIA MPS">
+        <div>
+          <div class="kpi-giant">1.6×</div>
+          <p class="card-subtitle">higher SKU throughput per 96 GB G4 GPU using 2–3× NVIDIA MPS vs. 1 un-pipelined server</p>
+        </div>
+
+        <div class="iso-chart-wrap">
+          <svg viewBox="0 0 280 190" fill="none" role="img" aria-label="3D Isometric Throughput Prisms for 2-3x NVIDIA MPS vs Single Process">
+            <defs>
+              <linearGradient id="heroBarLeft" x1="42" y1="32" x2="76" y2="146" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#3B82F6"/>
+                <stop offset="100%" stop-color="#1D4ED8"/>
+              </linearGradient>
+              <linearGradient id="heroBarRight" x1="76" y1="32" x2="110" y2="146" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#1D4ED8"/>
+                <stop offset="100%" stop-color="#1E3A8A"/>
+              </linearGradient>
+              <linearGradient id="cyanGlintStripe" x1="56" y1="36" x2="56" y2="144" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#E0F2FE" stop-opacity="0.88"/>
+                <stop offset="55%" stop-color="#60A5FA" stop-opacity="0.50"/>
+                <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Soft Floor Shadows (Centers at x=76 and x=204 -> 128px horizontal separation!) -->
+            <ellipse cx="76" cy="146" rx="38" ry="8" fill="#1E293B" opacity="0.12"/>
+            <ellipse cx="204" cy="138" rx="36" ry="7.5" fill="#1E293B" opacity="0.08"/>
+
+            <!-- HERO 3D ISOMETRIC PRISM (Center x=76) -->
+            <g>
+              <polygon points="76,24 110,39 76,54 42,39" fill="#60A5FA" stroke="#BFDBFE" stroke-width="0.9"/>
+              <polygon points="42,39 76,54 76,144 42,129" fill="url(#heroBarLeft)"/>
+              <polygon points="54,44 65,49 65,139 54,134" fill="url(#cyanGlintStripe)"/>
+              <polygon points="76,54 110,39 110,129 76,144" fill="url(#heroBarRight)"/>
+              <text x="76" y="16" text-anchor="middle" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="13" fill="#2563EB">48 SKUs/s</text>
+            </g>
+
+            <!-- BASELINE 3D ISOMETRIC PRISM (Center x=204) -->
+            <g>
+              <polygon points="204,76 236,90 204,104 172,90" fill="#E2E8F0" stroke="#F8FAFC" stroke-width="0.9"/>
+              <polygon points="172,90 204,104 204,144 172,130" fill="#CBD5E1"/>
+              <polygon points="204,104 236,90 236,130 204,144" fill="#94A3B8"/>
+              <text x="204" y="67" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="12" fill="#64748B">30 SKUs/s</text>
+            </g>
+
+            <!-- Two-Line Non-Overlapping Base Labels (128px center-to-center distance) -->
+            <text x="76" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="11.2" fill="#1B2028">2–3× NVIDIA MPS</text>
+            <text x="76" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.5" fill="#2563EB">CPU/GPU Pipelined</text>
+
+            <text x="204" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="11.2" fill="#5A6577">1× Single Engine</text>
+            <text x="204" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-weight="500" font-size="9.5" fill="#7B8698">Un-Pipelined GIL</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 3 (TOP-RIGHT WIDE): LIVE PATTERN 4 HYBRID AUTOSCALER & ROUTER
+           ==================================================================== -->
+      <section class="bento-card card-3" aria-label="Live Pattern 4 Hybrid Autoscaler and Use-Case Router Simulation">
+        <div class="c3-left-column">
+          <div>
+            <h2 class="card-title-mid">Pattern 4: Hybrid Baseline + Burst</h2>
+            <p class="card-subtitle">1× always-warm On-Demand G4 guarantees 0 ms cold start while Spot (Fast-Start) &amp; DWS Flex-Start absorb traffic spikes.</p>
+          </div>
+
+          <div class="c3-arch-summary-pill">
+            <span class="c3-arch-pill-title">K8s Service: dgem-engine</span>
+            <span class="c3-arch-pill-desc">Routes across dgem-engine-baseline (1× On-Demand) + dgem-engine-burst (HPA 1..8 on Spot/DWS).</span>
+          </div>
+
+          <div class="c3-counter-panel">
+            <div class="c3-live-turn-line">
+              <span class="c3-live-turn-num" id="liveTurnCounter">3</span>
+              <span>active G4 pods serving traffic, in real time</span>
+            </div>
+            <div class="c3-progress-rail">
+              <div class="c3-progress-bar" id="liveProgressBar"></div>
+            </div>
+            <div class="c3-progress-meta">
+              <span>Baseline: 100% SLA</span>
+              <span id="liveCycleMs">Burst: 60–91% Spot Savings</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="c3-right-window-wrap">
+          <div class="sim-window">
+            <div class="sim-win-titlebar">
+              <div class="win-dots">
+                <span class="win-dot d1"></span>
+                <span class="win-dot d2"></span>
+                <span class="win-dot d3"></span>
+              </div>
+              <span class="win-title-label">gke-autoscaler · dgem-g4-priority</span>
+              <span class="win-pass-badge">PATTERN 4</span>
+              <div class="win-scanline" id="winScanline"></div>
+            </div>
+
+            <div class="sim-win-body">
+              <div class="sku-context-bar">
+                <span class="sku-title-text" id="skuTitleText">Use Case #1 · High-Volume Batch (48 SKUs/s)</span>
+                <span class="sku-mask-tag">HPA + SNAPSHOT</span>
+              </div>
+
+              <div class="canvas-mask-strip">
+                <span>Service: dgem-engine (:8080)</span>
+                <span class="canvas-mask-tokens">→ Baseline (Warm) + Burst (Elastic)</span>
+              </div>
+
+              <div class="slot-grid-2x2">
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">1. Anchor (OD)</span>
+                    <span class="slot-val" id="slotVal1">g4-std-24 48G</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 100%;"></div></div>
+                </div>
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">2. Spot Burst</span>
+                    <span class="slot-val" id="slotVal2">2× MPS (96G)</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 96%;"></div></div>
+                </div>
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">3. DWS Burst</span>
+                    <span class="slot-val" id="slotVal3">3× MPS (96G)</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 94%;"></div></div>
+                </div>
+                <div class="slot-tile">
+                  <div class="slot-tile-top">
+                    <span class="slot-key">4. GPU Mode</span>
+                    <span class="slot-val" id="slotVal4">2× MPS Max QPS</span>
+                  </div>
+                  <div class="slot-conf-bar"><div class="slot-conf-fill" style="width: 98%;"></div></div>
+                </div>
+              </div>
+
+              <div class="sim-win-footer">
+                <span class="entropy-gate-readout" id="entropyReadout">
+                  Availability: <strong>99.99% SLA (0s Cold Start)</strong>
+                </span>
+                <div class="commit-action-btn">
+                  <span>Pattern 4 Active</span>
+                  <div class="commit-pulse-ring" id="commitPulseRing"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 4 (BOTTOM-LEFT): 96 GB G4 SLICED VIA MIG, MPS OR FRACTIONAL vGPU
+           ==================================================================== -->
+      <section class="bento-card card-4" aria-label="96 GB RTX PRO 6000 VRAM Sliced via MIG, MPS or Fractional vGPU">
+        <div>
+          <div class="kpi-giant">96 GB</div>
+          <p class="card-subtitle">RTX PRO 6000 VRAM sliced via MIG (2×48GB or 4×24GB) or Fractional vGPU</p>
+        </div>
+
+        <div class="iso-chart-wrap">
+          <svg viewBox="0 0 280 185" fill="none" role="img" aria-label="3D Wireframe G4 Capacity Tank with MIG, MPS and vGPU Slice Callouts">
+            <defs>
+              <linearGradient id="c4TopFace1" x1="37" y1="112" x2="123" y2="140" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#93C5FD"/>
+                <stop offset="100%" stop-color="#3B82F6"/>
+              </linearGradient>
+              <linearGradient id="c4TopFace2" x1="37" y1="84" x2="123" y2="112" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#93C5FD"/>
+                <stop offset="100%" stop-color="#60A5FA"/>
+              </linearGradient>
+              <linearGradient id="c4TopFace3" x1="37" y1="56" x2="123" y2="84" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#BAE6FD"/>
+                <stop offset="100%" stop-color="#60A5FA"/>
+              </linearGradient>
+            </defs>
+
+            <!-- 1. Soft Floor Shadow Beneath Wireframe Tank (Centered at cx=80, dx=46, dy=15) -->
+            <ellipse cx="80" cy="159" rx="50" ry="10" fill="#1E293B" opacity="0.11"/>
+
+            <!-- 2. BACK WALLS OF 96 GB GLASS WIREFRAME TANK (Behind Model Stack) -->
+            <polygon points="34,33 80,18 80,126 34,141" fill="rgba(148, 163, 184, 0.10)"/>
+            <polygon points="80,18 126,33 126,141 80,126" fill="rgba(148, 163, 184, 0.14)"/>
+            <line x1="80" y1="18" x2="80" y2="126" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="3 3"/>
+            <line x1="34" y1="141" x2="80" y2="126" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="3 3"/>
+            <line x1="126" y1="141" x2="80" y2="126" stroke="#94A3B8" stroke-width="1.1" stroke-dasharray="3 3"/>
+
+            <!-- =================================================================
+                 3. 3D MODEL INSTANCE STACK (STRICT PAINTER'S Z-ORDER:
+                    BOTTOM [Instance 1] -> MIDDLE [Instance 2] -> TOP [Instance 3]
+                    Symmetric Isometric Diamonds: cx=80, dx=43 (x=37..123), dy=14, h=15)
+                 ================================================================= -->
+
+            <!-- SLICE 1 (BOTTOM — 1st 17.53 GiB Model Instance / 24 GB Tier, y_c=125, h=15) -->
+            <g>
+              <!-- Left Front Wall -->
+              <polygon points="37,125 80,139 80,154 37,140" fill="#2563EB"/>
+              <!-- Specular Glint on Left Face -->
+              <polygon points="48,128.6 56,131.2 56,146.2 48,143.6" fill="#93C5FD" opacity="0.45"/>
+              <!-- Right Front Wall -->
+              <polygon points="80,139 123,125 123,140 80,154" fill="#1E40AF"/>
+              <!-- Symmetric Top Diamond (y = 125 ± 14 -> 111..139) -->
+              <polygon points="80,111 123,125 80,139 37,125" fill="url(#c4TopFace1)" stroke="#BFDBFE" stroke-width="0.75" stroke-linejoin="round"/>
+            </g>
+
+            <!-- SLICE 2 (MIDDLE — 2nd 17.53 GiB Model Instance / 48 GB Tier, y_c=97, h=15) -->
+            <g>
+              <!-- Left Front Wall -->
+              <polygon points="37,97 80,111 80,126 37,112" fill="#3B82F6"/>
+              <!-- Specular Glint on Left Face -->
+              <polygon points="48,100.6 56,103.2 56,118.2 48,115.6" fill="#BAE6FD" opacity="0.45"/>
+              <!-- Right Front Wall -->
+              <polygon points="80,111 123,97 123,112 80,126" fill="#1D4ED8"/>
+              <!-- Symmetric Top Diamond (y = 97 ± 14 -> 83..111) -->
+              <polygon points="80,83 123,97 80,111 37,97" fill="url(#c4TopFace2)" stroke="#DBEAFE" stroke-width="0.75" stroke-linejoin="round"/>
+            </g>
+
+            <!-- SLICE 3 (TOP — 3rd 17.53 GiB Model Instance / 96 GB MPS/MIG Tier, y_c=69, h=15) -->
+            <g>
+              <!-- Left Front Wall -->
+              <polygon points="37,69 80,83 80,98 37,84" fill="#60A5FA"/>
+              <!-- Specular Glint on Left Face -->
+              <polygon points="48,72.6 56,75.2 56,90.2 48,87.6" fill="#E0F2FE" opacity="0.55"/>
+              <!-- Right Front Wall -->
+              <polygon points="80,83 123,69 123,84 80,98" fill="#2563EB"/>
+              <!-- Symmetric Top Diamond (y = 69 ± 14 -> 55..83) -->
+              <polygon points="80,55 123,69 80,83 37,69" fill="url(#c4TopFace3)" stroke="#EFF6FF" stroke-width="0.85" stroke-linejoin="round"/>
+            </g>
+
+            <!-- 4. FRONT GLASS FACES & WIREFRAME EDGES OF 96 GB TANK (Over Model Stack) -->
+            <polygon points="34,33 80,48 80,156 34,141" fill="rgba(255, 255, 255, 0.05)" stroke="#94A3B8" stroke-width="1.25" stroke-linejoin="round"/>
+            <polygon points="80,48 126,33 126,141 80,156" fill="rgba(148, 163, 184, 0.07)" stroke="#94A3B8" stroke-width="1.25" stroke-linejoin="round"/>
+            <!-- Top Glass Lid Diamond (y = 33 ± 15 -> 18..48) -->
+            <polygon points="80,18 126,33 80,48 34,33" fill="rgba(226, 232, 240, 0.22)" stroke="#94A3B8" stroke-width="1.35" stroke-linejoin="round"/>
+
+            <!-- 5. RIGHT-ALIGNED LEADER LINES & HARDWARE CALLOUTS -->
+            <!-- Leader Line 1: Full 96 GB Tank / Top MPS Tier (y=36) -->
+            <circle cx="126" cy="36" r="2.8" fill="#475569"/>
+            <line x1="126" y1="36" x2="144" y2="36" stroke="#64748B" stroke-width="1.2"/>
+            <text x="148" y="33" font-family="Inter, sans-serif" font-weight="700" font-size="10.0" fill="#1B2028">g4-standard-48 (96 GB)</text>
+            <text x="148" y="46" font-family="Inter, sans-serif" font-weight="500" font-size="9.0" fill="#5A6577">Full GPU: 2–3× MPS / MIG</text>
+
+            <!-- Leader Line 2: Middle 48 GB Tier (y=97) -->
+            <circle cx="126" cy="97" r="2.8" fill="#3B82F6"/>
+            <line x1="126" y1="97" x2="144" y2="97" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <text x="148" y="94" font-family="Inter, sans-serif" font-weight="700" font-size="10.0" fill="#1B2028">g4-standard-24 (48 GB)</text>
+            <text x="148" y="107" font-family="Inter, sans-serif" font-weight="500" font-size="9.0" fill="#5A6577">1/2 vGPU or 2g.48gb MIG</text>
+
+            <!-- Leader Line 3: Bottom 24 GB Tier (y=132) -->
+            <circle cx="126" cy="132" r="3" fill="#2563EB"/>
+            <line x1="126" y1="132" x2="144" y2="132" stroke="#2563EB" stroke-width="1.4"/>
+            <text x="148" y="129" font-family="Plus Jakarta Sans, Inter, sans-serif" font-weight="800" font-size="10.0" fill="#2563EB">g4-standard-12 (24 GB)</text>
+            <text x="148" y="142" font-family="JetBrains Mono, monospace" font-weight="600" font-size="9.0" fill="#2563EB">1/4 vGPU or 1g.24gb MIG</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 5 (BOTTOM-CENTER-LEFT): USE-CASE EXECUTION STRATEGY MATRIX
+           ==================================================================== -->
+      <section class="bento-card card-5" aria-label="Use-Case Execution Strategy Matrix">
+        <div style="text-align: center;">
+          <div class="kpi-giant">4 Modes</div>
+          <p class="card-subtitle">optimal G4 sharing mode by enterprise workload</p>
+        </div>
+
+        <div class="c5-gate-pill">Note: MPS requires &gt;= 1 full GPU (g4-standard-48+)</div>
+
+        <div class="checklist-stack">
+          <div class="checklist-row">
+            <span class="checklist-row-label">Max Batch QPS → 2–3× MPS (96 GB)</span>
+            <span class="status-badge-circle pass" id="badgeRow1" aria-label="Supported">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </div>
+
+          <div class="checklist-row">
+            <span class="checklist-row-label">Strict p99 SLA → 2g.48gb MIG (2× Pods)</span>
+            <span class="status-badge-circle pass" id="badgeRow2" aria-label="Supported">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+          </div>
+
+          <div class="checklist-row muted-row">
+            <span class="checklist-row-label">5+ Pods on 96 GB (87.6 GiB Weights)</span>
+            <span class="status-badge-circle block" id="badgeRow3" aria-label="Exceeds VRAM">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 6 (BOTTOM-CENTER-RIGHT): COLD-START RECOVERY RACE (PATTERN 4 VS COLD)
+           ==================================================================== -->
+      <section class="bento-card card-6" aria-label="Scale-Out Readiness Cold-Start Race">
+        <div>
+          <h2 class="card-title-mid">Scale-Out Readiness</h2>
+          <p class="card-subtitle">Pattern 4 On-Demand Anchor + Fast-Start Spot vs. Cold G4 Node</p>
+        </div>
+
+        <div class="waffle-comparison-stack">
+          <!-- Row 1: Pattern 4 (Warm OD + Snap) -->
+          <div class="waffle-model-block">
+            <div class="waffle-header-line">
+              <span class="waffle-model-title hero">Pattern 4 (Warm OD + Snap)</span>
+              <span class="waffle-step-count hero" id="heroStepLabel">0s Anchor / 8s Burst</span>
+            </div>
+            <div class="waffle-grid-13x3" id="waffleHeroGrid"></div>
+          </div>
+
+          <!-- Row 2: Cold Uncached G4 Boot -->
+          <div class="waffle-model-block">
+            <div class="waffle-header-line">
+              <span class="waffle-model-title">Cold Uncached G4 Boot</span>
+              <span class="waffle-step-count" id="baseStepLabel">180s Pull + JIT</span>
+            </div>
+            <div class="waffle-grid-13x3" id="waffleBaseGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CARD 7 (BOTTOM-RIGHT): G4 SHAPE VRAM & INSTANCE PACKING MATRIX
+           ==================================================================== -->
+      <section class="bento-card card-7" aria-label="G4 Shape Packing Matrix">
+        <div class="quant-centered-header">
+          <h2 class="quant-title-big">G4 Shape Packing</h2>
+          <p class="card-subtitle">17.53 GiB NVFP4 model instances per G4 shape</p>
+        </div>
+
+        <div class="quant-matrix-rows">
+          <!-- 96 GB Row -->
+          <div class="quant-row">
+            <span class="quant-bit-label hero">96 GB</span>
+            <div class="quant-pill-group">
+              <div class="quant-pill-track" style="grid-template-columns: repeat(4, 1fr);" id="q16RowA"></div>
+              <div class="quant-pill-track" style="grid-template-columns: repeat(4, 1fr);" id="q16RowB"></div>
+            </div>
+            <span class="quant-gib-label hero">3–4 Pods</span>
+          </div>
+
+          <!-- 48 GB Row -->
+          <div class="quant-row">
+            <span class="quant-bit-label">48 GB</span>
+            <div class="quant-pill-group" style="width: 52%;">
+              <div class="quant-pill-track" style="grid-template-columns: repeat(2, 1fr);" id="q8RowA"></div>
+              <div class="quant-pill-track" style="grid-template-columns: repeat(2, 1fr);" id="q8RowB"></div>
+            </div>
+            <span class="quant-gib-label">1–2 Pods</span>
+          </div>
+
+          <!-- 24 GB Animated Compression Row -->
+          <div class="quant-row">
+            <span class="quant-bit-label hero">24 GB</span>
+            <div class="quant-pill-group compress-4bit" id="q4CompressWrap">
+              <div class="quant-pill-track" style="grid-template-columns: repeat(1, 1fr);" id="q4RowA"></div>
+              <div class="quant-pill-track" style="grid-template-columns: repeat(1, 1fr);" id="q4RowB"></div>
+            </div>
+            <span class="quant-gib-label hero">1 Pod</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Subtle Floating Playback Scrubber Bar (Auto-Hides in Fullscreen) -->
+  <nav class="director-hud" aria-label="Animation Playback Controls">
+    <button class="hud-btn" id="btnPlayPause" type="button">Pause</button>
+    <button class="hud-btn" id="btnRestart" type="button">Restart 0:00</button>
+    <span class="hud-clock" id="hudClock">04.2s / 15.0s</span>
+    <button class="hud-btn" id="btnFullscreen" type="button">Fullscreen</button>
+  </nav>
+
+  <script>
+    // Synchronized Light / Dark Studio Theme Toggle (Defaults to 'light')
+    (function initTheme() {
+      const saved = localStorage.getItem('dgem-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', saved);
+      const btn = document.getElementById('themeToggleBtn');
+      function updateLabel(t) {
+        btn.textContent = t === 'dark' ? '🌙 Dark Slate' : '☀️ Studio Aluminum (Light)';
+      }
+      updateLabel(saved);
+      btn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('dgem-theme', next);
+        updateLabel(next);
+      });
+    })();
+
+    const BENTO_TOPIC_CONFIG = {
+      topicName: "GKE G4 Fleet",
+      topicTag: "G4 · RTX PRO 6000",
+      durationSec: 15.0,
+      turnCycleSec: 3.1,
+      useCaseSamples: [
+        {
+          profile: "Use Case #1 · High-Volume Batch (48 SKUs/s)",
+          s1: "g4-std-24 48G",
+          s2: "2× MPS (96G)",
+          s3: "3× MPS (96G)",
+          s4: "2× MPS Max QPS",
+          pods: 4,
+          sla: "Availability: <strong>99.99% SLA (0s Cold Start)</strong>"
+        },
+        {
+          profile: "Use Case #2 · Multi-Tenant Strict p99 SLA",
+          s1: "g4-std-24 48G",
+          s2: "2g.48gb MIG",
+          s3: "2× 48G Slices",
+          s4: "MIG Strict p99",
+          pods: 3,
+          sla: "Availability: <strong>Hardware Fault &amp; QoS Isolated</strong>"
+        },
+        {
+          profile: "Use Case #3 · 4× Micro-Envs on 1× 96 GB G4",
+          s1: "g4-std-12 24G",
+          s2: "1g.24gb MIG",
+          s3: "4× 24G Slices",
+          s4: "1g.24gb ×4 Pods",
+          pods: 5,
+          sla: "Availability: <strong>4 Isolated 24 GB Slices / GPU</strong>"
+        },
+        {
+          profile: "Use Case #4 · Right-Sized Fractional vGPU",
+          s1: "g4-std-24 48G",
+          s2: "Spot 48G vGPU",
+          s3: "DWS 48G vGPU",
+          s4: "1/2 vGPU 48GB",
+          pods: 3,
+          sla: "Availability: <strong>30.4 GiB KV Headroom / Pod</strong>"
+        }
+      ]
+    };
+
+    // Build Waffle Grids (Card 6: 13 cols × 3 rows = 39 cells)
+    const waffleHeroGrid = document.getElementById('waffleHeroGrid');
+    const waffleBaseGrid = document.getElementById('waffleBaseGrid');
+    const heroCells = [];
+    const baseCells = [];
+
+    for (let i = 0; i < 39; i++) {
+      const hCell = document.createElement('div');
+      hCell.className = i < 4 ? 'waffle-cell active-hero' : 'waffle-cell ghost';
+      waffleHeroGrid.appendChild(hCell);
+      heroCells.push(hCell);
+
+      const bCell = document.createElement('div');
+      bCell.className = i < 12 ? 'waffle-cell active-base' : 'waffle-cell';
+      waffleBaseGrid.appendChild(bCell);
+      baseCells.push(bCell);
+    }
+
+    // Build G4 Shape Packing Pill Matrices (Card 7)
+    function populatePills(containerId, count, isHero) {
+      const el = document.getElementById(containerId);
+      for (let i = 0; i < count; i++) {
+        const pill = document.createElement('div');
+        pill.className = isHero ? 'quant-pill hero-pill' : 'quant-pill';
+        el.appendChild(pill);
+      }
+    }
+    populatePills('q16RowA', 4, true);
+    populatePills('q16RowB', 4, true);
+    populatePills('q8RowA', 2, false);
+    populatePills('q8RowB', 2, false);
+    populatePills('q4RowA', 1, true);
+    populatePills('q4RowB', 1, true);
+
+    // Animation References
+    const liveTurnCounter = document.getElementById('liveTurnCounter');
+    const liveProgressBar = document.getElementById('liveProgressBar');
+    const winScanline = document.getElementById('winScanline');
+    const commitPulseRing = document.getElementById('commitPulseRing');
+    const skuTitleText = document.getElementById('skuTitleText');
+    const slotVal1 = document.getElementById('slotVal1');
+    const slotVal2 = document.getElementById('slotVal2');
+    const slotVal3 = document.getElementById('slotVal3');
+    const slotVal4 = document.getElementById('slotVal4');
+    const entropyReadout = document.getElementById('entropyReadout');
+    const baseStepLabel = document.getElementById('baseStepLabel');
+    const q4CompressWrap = document.getElementById('q4CompressWrap');
+    const hudClock = document.getElementById('hudClock');
+    const btnPlayPause = document.getElementById('btnPlayPause');
+
+    let isPlaying = true;
+    let elapsedSec = 4.2;
+    let lastTimestamp = null;
+    let lastTurnIndex = -1;
+    let pulseTriggeredForTurn = -1;
+
+    function triggerSequenceStart(startAtZero = false) {
+      elapsedSec = startAtZero ? 0.0 : 4.2;
+      lastTimestamp = null;
+      lastTurnIndex = -1;
+      pulseTriggeredForTurn = -1;
+
+      if (startAtZero) {
+        q4CompressWrap.style.transition = 'none';
+        q4CompressWrap.style.width = '100%';
+        void q4CompressWrap.offsetWidth;
+        q4CompressWrap.style.transition = 'width 1.1s cubic-bezier(0.22, 1, 0.36, 1)';
+        setTimeout(() => { q4CompressWrap.style.width = '26%'; }, 60);
+      } else {
+        q4CompressWrap.style.width = '26%';
+      }
+    }
+
+    function updateFrame(now) {
+      if (lastTimestamp === null) {
+        lastTimestamp = now;
+      }
+      const dt = Math.max(0, (now - lastTimestamp) / 1000);
+      lastTimestamp = now;
+
+      if (isPlaying) {
+        elapsedSec += dt;
+        if (elapsedSec > BENTO_TOPIC_CONFIG.durationSec) {
+          triggerSequenceStart(true);
+        }
+      }
+
+      const safeSec = Math.max(0, elapsedSec);
+
+      // 1. Update HUD Clock
+      hudClock.textContent = `${safeSec.toFixed(1).padStart(4, '0')}s / 15.0s`;
+
+      // 2. Card 3: Real-Time Cycle Progress & Active Pod Counter (3.1s per cycle)
+      const turnIndex = Math.max(0, Math.floor(safeSec / BENTO_TOPIC_CONFIG.turnCycleSec));
+      const cycleProgress = (safeSec % BENTO_TOPIC_CONFIG.turnCycleSec) / BENTO_TOPIC_CONFIG.turnCycleSec;
+      const pct = Math.max(6, Math.min(100, cycleProgress * 100));
+
+      liveProgressBar.style.width = `${pct.toFixed(1)}%`;
+      winScanline.style.transform = `translateX(${(cycleProgress * 340 - 80).toFixed(1)}%)`;
+
+      if (cycleProgress > 0.80 && pulseTriggeredForTurn !== turnIndex) {
+        pulseTriggeredForTurn = turnIndex;
+        commitPulseRing.classList.remove('active');
+        void commitPulseRing.offsetWidth;
+        commitPulseRing.classList.add('active');
+      }
+
+      if (turnIndex !== lastTurnIndex) {
+        lastTurnIndex = turnIndex;
+        const sample = BENTO_TOPIC_CONFIG.useCaseSamples[turnIndex % BENTO_TOPIC_CONFIG.useCaseSamples.length];
+        liveTurnCounter.textContent = String(sample.pods);
+        liveTurnCounter.classList.add('bump');
+        setTimeout(() => liveTurnCounter.classList.remove('bump'), 200);
+
+        skuTitleText.textContent = sample.profile;
+        slotVal1.textContent = sample.s1;
+        slotVal2.textContent = sample.s2;
+        slotVal3.textContent = sample.s3;
+        slotVal4.textContent = sample.s4;
+        entropyReadout.innerHTML = sample.sla;
+      }
+
+      // 3. Card 6: Waffle Grid Cold-Start Recovery Race
+      const heroActiveSlots = safeSec >= 0.25 ? 4 : Math.max(1, Math.floor((safeSec / 0.25) * 4));
+      for (let i = 0; i < 39; i++) {
+        if (i < heroActiveSlots) {
+          heroCells[i].classList.add('active-hero');
+        } else {
+          heroCells[i].classList.remove('active-hero');
+        }
+      }
+
+      const baseActiveCount = Math.min(31, 6 + Math.floor((safeSec / BENTO_TOPIC_CONFIG.durationSec) * 25));
+      baseStepLabel.textContent = `180s Pull (${baseActiveCount}/39)`;
+      for (let i = 0; i < 39; i++) {
+        if (i < baseActiveCount) {
+          baseCells[i].classList.add('active-base');
+        } else {
+          baseCells[i].classList.remove('active-base');
+        }
+      }
+
+      requestAnimationFrame(updateFrame);
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      btnPlayPause.textContent = isPlaying ? 'Pause' : 'Play';
+    });
+
+    document.getElementById('btnRestart').addEventListener('click', () => {
+      isPlaying = true;
+      btnPlayPause.textContent = 'Pause';
+      triggerSequenceStart(true);
+    });
+
+    document.getElementById('btnFullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    if (window.self !== window.top || window.location.search.includes('embed=1')) {
+      document.documentElement.classList.add('embedded-mode');
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'dgem-theme' && e.newValue) {
+        document.documentElement.setAttribute('data-theme', e.newValue);
+        const icon = document.getElementById('themeIcon');
+        const label = document.getElementById('themeLabel');
+        if (icon && label) {
+          icon.textContent = e.newValue === 'dark' ? '🌙' : '☀️';
+          label.textContent = e.newValue === 'dark' ? 'Slate Dark' : 'Studio Aluminum (Light)';
+        }
+      }
+    });
+
+    triggerSequenceStart(false);
+    requestAnimationFrame(updateFrame);
+  </script>
+</body>
+</html>

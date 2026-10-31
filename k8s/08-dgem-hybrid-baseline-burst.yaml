@@ -1,0 +1,592 @@
+# ==============================================================================
+# 08-dgem-hybrid-baseline-burst.yaml
+#
+# Architectural Pattern 4 (Recommended Enterprise Production Standard):
+#   "Hybrid Always-On On-Demand Baseline + Elastic Spot/DWS Burst"
+#
+# Topology behind a single `dgem-engine` ClusterIP Service (selector: app=dgem-engine):
+#   1. `dgem-engine-baseline` (Deployment + PodDisruptionBudget):
+#      - 1 (or N) always-on replica(s) pinned to the On-Demand G4 node pool
+#        (`dgem.cloud.google.com/pool-role: baseline-ondemand`, `ondemand_min_nodes = 1`).
+#      - Supports cost-optimized fractional vGPU `g4-standard-24` (1/2 GPU, 48 GB GDDR7,
+#        ~50% lower On-Demand cost) or full GPU `g4-standard-48` (96 GB GDDR7).
+#      - Guarantees 100% model availability with ZERO cold-start delay even during
+#        regional Spot preemptions or DWS queue waits.
+#   2. `dgem-engine-burst` (Deployment + HorizontalPodAutoscaler):
+#      - Elastic burst replicas (`minReplicas: 1`, `maxReplicas: 8`) scheduled via
+#        Custom ComputeClass `dgem-g4-priority`:
+#          Priority 1: Spot G4 with 3-Layer Fast-Start Snapshots (60-91% discount)
+#          Priority 2: Spot G4 Fractional vGPU (g4-standard-24)
+#          Priority 3: DWS Flex-Start G4 (Queued Provisioning up to 7 days)
+#          Priority 4/5: On-Demand overflow
+#      - Actively migrates burst pods back to Spot G4 when Spot capacity recovers.
+#   3. Optional High-Density GPU Sharing Variants on `g4-standard-48` (96 GB):
+#      - Variant A: NVIDIA MPS (`2` or `3` shared clients per 96 GB GPU, `hostIPC: true`)
+#      - Variant B: Hardware MIG (`2g.48gb` = 2 hardware-isolated 48 GB slices per GPU)
+# ==============================================================================
+
+# 1A. Always-On On-Demand Baseline Deployment (100% Availability, Zero Cold-Start)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgem-engine-baseline
+  namespace: dgem
+  labels:
+    app: dgem-engine
+    tier: baseline-ondemand
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: dgem-engine
+      tier: baseline-ondemand
+  template:
+    metadata:
+      labels:
+        app: dgem-engine
+        tier: baseline-ondemand
+    spec:
+      serviceAccountName: dgem-engine-ksa
+      # Pin baseline replica(s) to the always-warm On-Demand G4 node pool (g4-standard-24 48GB or g4-standard-48 96GB)
+      nodeSelector:
+        dgem.cloud.google.com/provisioning: ondemand
+        dgem.cloud.google.com/pool-role: baseline-ondemand
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/compute-class"
+          operator: "Equal"
+          value: "dgem-g4-priority"
+          effect: "NoSchedule"
+      containers:
+        - name: dgemma
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dgem-images/dgemma:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: vllm-internal
+              containerPort: 8000
+          env:
+            - name: MODEL
+              value: "/mnt/weights/diffusiongemma-26B-A4B-it-NVFP4"
+            - name: DGEM_WEIGHTS_URI
+              value: "gs://${PROJECT_ID}-dgem-weights/models/diffusiongemma-26B-A4B-it-NVFP4"
+            - name: JIT_CACHE_TAR
+              value: "/mnt/weights/jit-cache.tar.gz"
+            - name: COPY_TO_SHM
+              value: "1"
+            - name: PORT
+              value: "8080"
+            - name: ROLE
+              value: "default"
+            - name: CANVAS
+              value: "128"
+            - name: ENFORCE_EAGER
+              value: "1"
+            - name: DISABLE_MM
+              value: "0"
+            - name: GPU_UTIL
+              value: "0.85"
+            - name: KV_CACHE_GB
+              value: "12"
+            - name: MAX_SEQS
+              value: "24"
+            - name: MAX_MODEL_LEN
+              value: "8192"
+            - name: DEFAULT_SAMPLES
+              value: "1"
+            - name: MAX_INFLIGHT
+              value: "8"
+            - name: DGEM_MAX_Q_PER_CALL
+              value: "8"
+            - name: TEMPERATURE
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: fitted_temperature
+          # Fits both g4-standard-24 (24 vCPU, 96 GB RAM, 48 GB vGPU) and g4-standard-48 (48 vCPU, 180 GB RAM, 96 GB GPU)
+          resources:
+            requests:
+              cpu: "8"
+              memory: "48Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "22"
+              memory: "84Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: weights-vol
+              mountPath: /mnt/weights
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 28Gi
+        - name: weights-vol
+          persistentVolumeClaim:
+            claimName: dgem-nvfp4-weights-pvc
+---
+# 1B. PodDisruptionBudget for Always-On Baseline (Guarantees >=1 Warm Replica During Node Upgrades)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dgem-engine-baseline-pdb
+  namespace: dgem
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: dgem-engine
+      tier: baseline-ondemand
+---
+# 2A. Elastic Burst Deployment (Spot G4 Fast-Start -> DWS Flex-Start -> On-Demand via ComputeClass)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgem-engine-burst
+  namespace: dgem
+  labels:
+    app: dgem-engine
+    tier: elastic-burst
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dgem-engine
+      tier: elastic-burst
+  template:
+    metadata:
+      labels:
+        app: dgem-engine
+        tier: elastic-burst
+    spec:
+      serviceAccountName: dgem-engine-ksa
+      # Route elastic burst pods through Custom ComputeClass waterfall (Spot -> DWS Flex -> On-Demand)
+      nodeSelector:
+        cloud.google.com/compute-class: dgem-g4-priority
+      # Prefer scheduling burst replicas on Spot / DWS Flex-Start nodes so baseline On-Demand stays dedicated
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: dgem.cloud.google.com/pool-role
+                    operator: In
+                    values:
+                      - elastic-burst
+      tolerations:
+        - key: "cloud.google.com/compute-class"
+          operator: "Equal"
+          value: "dgem-g4-priority"
+          effect: "NoSchedule"
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/gke-spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/gke-queued"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        - key: "sandbox.gke.io/runtime"
+          operator: "Equal"
+          value: "gvisor"
+          effect: "NoSchedule"
+      containers:
+        - name: dgemma
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dgem-images/dgemma:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: vllm-internal
+              containerPort: 8000
+          env:
+            - name: MODEL
+              value: "/mnt/weights/diffusiongemma-26B-A4B-it-NVFP4"
+            - name: DGEM_WEIGHTS_URI
+              value: "gs://${PROJECT_ID}-dgem-weights/models/diffusiongemma-26B-A4B-it-NVFP4"
+            - name: JIT_CACHE_TAR
+              value: "/mnt/weights/jit-cache.tar.gz"
+            - name: COPY_TO_SHM
+              value: "1"
+            - name: PORT
+              value: "8080"
+            - name: ROLE
+              value: "default"
+            - name: CANVAS
+              value: "128"
+            - name: ENFORCE_EAGER
+              value: "1"
+            - name: DISABLE_MM
+              value: "0"
+            - name: GPU_UTIL
+              value: "0.85"
+            - name: KV_CACHE_GB
+              value: "12"
+            - name: MAX_SEQS
+              value: "32"
+            - name: MAX_MODEL_LEN
+              value: "8192"
+            - name: DEFAULT_SAMPLES
+              value: "1"
+            - name: MAX_INFLIGHT
+              value: "8"
+            - name: DGEM_MAX_Q_PER_CALL
+              value: "8"
+            - name: TEMPERATURE
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: fitted_temperature
+          resources:
+            requests:
+              cpu: "8"
+              memory: "48Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "22"
+              memory: "84Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: weights-vol
+              mountPath: /mnt/weights
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 28Gi
+        - name: weights-vol
+          persistentVolumeClaim:
+            claimName: dgem-nvfp4-weights-pvc
+---
+# 2B. HorizontalPodAutoscaler for Elastic Spot/DWS Burst Pool (`dgem-engine-burst`)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dgem-engine-burst-hpa
+  namespace: dgem
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dgem-engine-burst
+  minReplicas: 1
+  maxReplicas: 8
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      # 5-minute cooldown prevents thrashing Spot G4 nodes between burst waves
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+---
+# 3. Unified ClusterIP Service Routing Across Baseline + Burst Replicas
+#    Any pod with label `app: dgem-engine` (both `dgem-engine-baseline` and `dgem-engine-burst`,
+#    plus optional MPS/MIG replicas) automatically receives traffic once ReadinessProbe passes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgem-engine
+  namespace: dgem
+  labels:
+    app: dgem-engine
+spec:
+  type: ClusterIP
+  selector:
+    app: dgem-engine
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# ==============================================================================
+# 4. OPTIONAL HIGH-DENSITY GPU SHARING PROFILES ON `g4-standard-48` (96 GB)
+#    Uncomment or apply with `kubectl scale` when `gpu_sharing_strategy` is set
+#    to "mps" or "mig" in Terraform / deploy_all_gcloud.sh.
+#    NOTE: GKE does NOT allow MPS or MIG on fractional <1 GPU shapes (g4-standard-12/24).
+# ==============================================================================
+#
+# Variant 4A: Multi-Instance NVIDIA MPS (2 Shared Clients per 96 GB RTX PRO 6000 GPU)
+#   - Delivers 1.4x-1.7x higher batch throughput (~75-85+ items/sec per physical G4 GPU)
+#   - Requires `hostIPC: true` and `cloud.google.com/gke-gpu-sharing-strategy: mps`
+#   - GKE automatically injects CUDA_MPS_ACTIVE_THREAD_PERCENTAGE=50 and
+#     CUDA_MPS_PINNED_DEVICE_MEM_LIMIT=48G per container.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgem-engine-mps
+  namespace: dgem
+  labels:
+    app: dgem-engine
+    tier: mps-shared
+spec:
+  # Set replicas: 2 (or 4/6/8) when running on an MPS-enabled g4-standard-48 node pool
+  replicas: 0
+  selector:
+    matchLabels:
+      app: dgem-engine
+      tier: mps-shared
+  template:
+    metadata:
+      labels:
+        app: dgem-engine
+        tier: mps-shared
+    spec:
+      serviceAccountName: dgem-engine-ksa
+      # REQUIRED by GKE NVIDIA MPS daemon so containers share the host IPC namespace
+      hostIPC: true
+      nodeSelector:
+        cloud.google.com/compute-class: dgem-g4-mps-priority
+        cloud.google.com/gke-gpu-sharing-strategy: mps
+        cloud.google.com/gke-max-shared-clients-per-gpu: "2"
+      tolerations:
+        - key: "cloud.google.com/compute-class"
+          operator: "Equal"
+          value: "dgem-g4-mps-priority"
+          effect: "NoSchedule"
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/gke-spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      containers:
+        - name: dgemma
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dgem-images/dgemma:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: vllm-internal
+              containerPort: 8000
+          env:
+            - name: MODEL
+              value: "/mnt/weights/diffusiongemma-26B-A4B-it-NVFP4"
+            - name: JIT_CACHE_TAR
+              value: "/mnt/weights/jit-cache.tar.gz"
+            - name: COPY_TO_SHM
+              value: "1"
+            - name: PORT
+              value: "8080"
+            - name: CANVAS
+              value: "128"
+            - name: ENFORCE_EAGER
+              value: "1"
+            # Each MPS client gets 48 GB pinned VRAM (17.53 GiB weights + 12 GiB KV cache + ~4.5 GiB runtime = ~34 GiB/client)
+            - name: GPU_UTIL
+              value: "0.42"
+            - name: KV_CACHE_GB
+              value: "12"
+            - name: MAX_SEQS
+              value: "24"
+            - name: MAX_MODEL_LEN
+              value: "8192"
+            - name: TEMPERATURE
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: fitted_temperature
+          resources:
+            requests:
+              cpu: "16"
+              memory: "64Gi"
+              # Requests 1 MPS sharing unit (node reports nvidia.com/gpu: 2 allocatable)
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "22"
+              memory: "80Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: weights-vol
+              mountPath: /mnt/weights
+              readOnly: true
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 24Gi
+        - name: weights-vol
+          persistentVolumeClaim:
+            claimName: dgem-nvfp4-weights-pvc
+---
+# Variant 4B: Hardware Multi-Instance GPU (MIG `2g.48gb` = 2 Isolated 48 GB Slices per 96 GB GPU)
+#   - Provides strict hardware-level compute, cache, and memory bandwidth QoS isolation
+#   - Does NOT require `hostIPC: true`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgem-engine-mig
+  namespace: dgem
+  labels:
+    app: dgem-engine
+    tier: mig-isolated
+spec:
+  # Set replicas: 2 (or 4/6/8) when running on a MIG 2g.48gb g4-standard-48 node pool
+  replicas: 0
+  selector:
+    matchLabels:
+      app: dgem-engine
+      tier: mig-isolated
+  template:
+    metadata:
+      labels:
+        app: dgem-engine
+        tier: mig-isolated
+    spec:
+      serviceAccountName: dgem-engine-ksa
+      nodeSelector:
+        cloud.google.com/compute-class: dgem-g4-mig-priority
+        cloud.google.com/gke-gpu-partition-size: "2g.48gb"
+      tolerations:
+        - key: "cloud.google.com/compute-class"
+          operator: "Equal"
+          value: "dgem-g4-mig-priority"
+          effect: "NoSchedule"
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "cloud.google.com/gke-spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      containers:
+        - name: dgemma
+          image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dgem-images/dgemma:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: vllm-internal
+              containerPort: 8000
+          env:
+            - name: MODEL
+              value: "/mnt/weights/diffusiongemma-26B-A4B-it-NVFP4"
+            - name: JIT_CACHE_TAR
+              value: "/mnt/weights/jit-cache.tar.gz"
+            - name: COPY_TO_SHM
+              value: "1"
+            - name: PORT
+              value: "8080"
+            - name: CANVAS
+              value: "128"
+            - name: ENFORCE_EAGER
+              value: "1"
+            # Within a dedicated 2g.48gb MIG slice, vLLM sees 48 GB total slice memory (36 GiB / 48 GiB = 0.75-0.85)
+            - name: GPU_UTIL
+              value: "0.85"
+            - name: KV_CACHE_GB
+              value: "12"
+            - name: MAX_SEQS
+              value: "24"
+            - name: MAX_MODEL_LEN
+              value: "8192"
+            - name: TEMPERATURE
+              valueFrom:
+                configMapKeyRef:
+                  name: dgem-calibration-config
+                  key: fitted_temperature
+          resources:
+            requests:
+              cpu: "16"
+              memory: "64Gi"
+              # Requests 1 MIG 2g.48gb slice (node reports nvidia.com/gpu: 2 allocatable)
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "22"
+              memory: "80Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: weights-vol
+              mountPath: /mnt/weights
+              readOnly: true
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 24Gi
+        - name: weights-vol
+          persistentVolumeClaim:
+            claimName: dgem-nvfp4-weights-pvc

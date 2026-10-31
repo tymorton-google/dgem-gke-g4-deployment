@@ -10,14 +10,37 @@ region                 = "us-central1"
 zones                  = ["us-central1-b", "us-central1-c", "us-central1-f"]
 cluster_name           = "dgem-g4-cluster"
 gke_release_channel    = "RAPID"
-gke_min_master_version = "1.35"
+gke_min_master_version = "1.35.8-gke.1518000"
 
-# NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB GDDR7, native NVFP4)
-g4_machine_type = "g4-standard-48"
-g4_gpu_type     = "nvidia-rtx-pro-6000"
-g4_gpu_count    = 1
+# ==============================================================================
+# Architectural Pattern Selection (Pattern 4 Default):
+#   - "hybrid_baseline_plus_burst" : Always-On On-Demand Baseline (100% uptime, 0s cold start)
+#                                    + Elastic HPA Spot/DWS Burst via ComputeClass/dgem-g4-priority
+#   - "spot_priority_waterfall"    : Scale-from-zero Spot -> DWS Flex -> On-Demand waterfall
+#   - "dws_flex_batch"             : Queued Provisioning DWS Flex-Start batch pool
+#   - "ondemand_only"              : Dedicated On-Demand G4 pool only
+# ==============================================================================
+deployment_pattern = "hybrid_baseline_plus_burst"
 
-# 3-Tier Provisioning Modes (All 3 coexist under ComputeClass/dgem-g4-priority)
+# Official G4 Machine Options:
+#   - Fractional vGPU (<1 GPU): "g4-standard-12" (24 GB), "g4-standard-24" (48 GB)
+#   - Full / Multi-GPU (>=1 GPU): "g4-standard-48" (96 GB), "g4-standard-96" (192 GB),
+#                                 "g4-standard-192" (384 GB), "g4-standard-384" (768 GB)
+baseline_g4_machine_type = "g4-standard-24" # 48 GB fractional vGPU baseline (~50% lower On-Demand cost) or "g4-standard-48" (96 GB)
+burst_g4_machine_type    = "g4-standard-48" # 96 GB full GPU for elastic Spot / DWS Flex-Start burst
+g4_machine_type          = "g4-standard-48"
+g4_gpu_type              = "nvidia-rtx-pro-6000"
+g4_gpu_count             = 1
+
+# GKE GPU Sharing Strategy on g4-standard-48 (96 GB):
+#   - "none" : Single dgem replica per GPU (required when using fractional g4-standard-12/24)
+#   - "mps"  : NVIDIA MPS (2 or 3 shared dgem clients per 96 GB GPU for 1.4x-1.7x batch throughput; requires baseline/burst >= g4-standard-48)
+#   - "mig"  : Hardware Multi-Instance GPU ("2g.48gb" = 2 slices or "1g.24gb" = 4 slices; requires baseline/burst >= g4-standard-48)
+gpu_sharing_strategy   = "none"
+mps_max_shared_clients = 2
+mig_partition_size     = "2g.48gb"
+
+# 3-Tier Provisioning Pools
 enable_spot_pool     = true
 spot_max_nodes       = 4
 
@@ -25,7 +48,7 @@ enable_dws_flex_pool = true
 dws_max_nodes        = 4
 
 enable_ondemand_pool = true
-ondemand_min_nodes   = 0
+ondemand_min_nodes   = 1 # >=1 for Pattern 4 always-on baseline (set to 0 for scale-from-zero)
 ondemand_max_nodes   = 2
 
 # Set after running scripts/generate_fast_start_snapshots.sh:
