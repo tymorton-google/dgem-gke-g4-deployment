@@ -24,8 +24,8 @@ Running a standard autoregressive LLM across 11 attributes for `1,000,000` SKUs 
 
 With **`dgem` (`DiffusionGemma 26B-A4B NVFP4`) on GKE G4 GPUs**:
 1. **Single-Pass Multi-Attribute Readout (`57 ms` p50)**: Up to 8 catalog attributes (`boolean`, `choice`, and `score`) are resolved simultaneously in a single `57 ms` forward pass on one `NVIDIA RTX PRO 6000 Blackwell` GPU.
-2. **2-Stage Bracket Tournaments for Deep Taxonomies ($K = 32$ Categories)**: Fine-grained taxonomies exceeding the 26-letter (`A`–`Z`) single-pass limit are automatically partitioned into balanced Round-1 brackets (packed into 1 canvas pass) followed by a Round-2 Finals pass—resolving 32 taxonomy categories with calibrated probabilities in **just 2 GPU forward passes (`~114 ms`)**.
-3. **Selective Per-Slot Stage 2 Escalation to `gemini-3.5-flash-lite`**: Clear, unambiguous SKUs (`~75%–85%` of catalog volume) auto-enrich in Stage 1 in `57 ms` with **`100.0%` calibrated precision** below the Hesitation threshold ($\tau = 0.16$). Only individual attributes with high Normalized Shannon Entropy ($\tilde{H} = H/\ln K \ge 0.16$) are escalated to **Vertex AI Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`)** with Stage 1's calibrated soft prior (`stage2_prior: "soft"`).
+2. **2-Stage Bracket Tournaments for Deep Taxonomies (`K = 32` Categories)**: Fine-grained taxonomies exceeding the 26-letter (`A`–`Z`) single-pass limit are automatically partitioned into balanced Round-1 brackets (packed into 1 canvas pass) followed by a Round-2 Finals pass—resolving 32 taxonomy categories with calibrated probabilities in **just 2 GPU forward passes (`~114 ms`)**.
+3. **Selective Per-Slot Stage 2 Escalation to `gemini-3.5-flash-lite`**: Clear, unambiguous SKUs (`~75%–85%` of catalog volume) auto-enrich in Stage 1 in `57 ms` below the `16%` (`0.16`) hesitation threshold. Only individual attributes with high Normalized Shannon Entropy (`Hesitation = H / ln(K) >= 0.16`) are escalated to **Vertex AI Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`)** with Stage 1's calibrated soft prior (`stage2_prior: "soft"`).
 
 ---
 

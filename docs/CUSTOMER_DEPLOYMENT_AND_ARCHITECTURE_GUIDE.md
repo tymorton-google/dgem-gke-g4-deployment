@@ -14,37 +14,37 @@
 
 Enterprise operations—such as **Retail Product Catalog Enrichment**, **Customer Support Ticket Triage**, and **Security Operations Center (SOC) Alert Triage**—require evaluating millions of records against multi-question business policies (compliance flags, deep category taxonomies, quality scores, and routing decisions).
 
-Traditional **System-2 Autoregressive LLMs** decode JSON outputs token-by-token over $O(N)$ sequential forward passes (`40–200` steps per record). Even when answers are simple booleans, categorical choices, or 1–5 scores, autoregressive decoding burns GPU compute generating syntax braces, field names, and reasoning chains—resulting in `400–2,000 ms` latency per item and uncalibrated confidence scores.
+Traditional **System-2 Autoregressive LLMs** decode JSON outputs token-by-token over `O(N)` sequential forward passes (`40–200` steps per record). Even when answers are simple booleans, categorical choices, or 1–5 scores, autoregressive decoding burns GPU compute generating syntax braces, field names, and reasoning chains—resulting in `400–2,000 ms` latency per item and uncalibrated confidence scores.
 
 **`dgem` (Decision Gemma, [github.com/GoogleCloudPlatform/dgem](https://github.com/GoogleCloudPlatform/dgem))** introduces a fundamentally different paradigm: **System-1 Discrete Diffusion Decisioning** powered by **`DiffusionGemma 26B-A4B NVFP4`** (`nvidia/diffusiongemma-26B-A4B-it-NVFP4`, a Mixture-of-Experts architecture with `26B` total parameters, `4B` active parameters per token, and native 4-bit Blackwell `NVFP4` weights occupying `17.53 GiB`) on **Google Cloud G4 GPUs** (`NVIDIA RTX PRO 6000 Blackwell Server Edition`, available as fractional `g4-standard-12` `24 GB` / `g4-standard-24` `48 GB` vGPU shapes, single-GPU `g4-standard-48` `96 GB`, and multi-GPU `g4-standard-96/192/384`), paired with **Selective Per-Slot Stage 2 Escalation** to **Vertex AI Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`)**.
 
 ### 1.1 Why System-1 Discrete Diffusion + Stage 2 Cascade Changes the Economics of Enterprise AI
-1. **$O(1)$ Single-Pass Multi-Slot Evaluation (`57 ms` p50)**:
+1. **`O(1)` Single-Pass Multi-Slot Evaluation (`57 ms` p50)**:
    - Instead of generating JSON token-by-token, `dgem` compiles a business policy into a `128`-token bidirectional diffusion canvas with one `@` mask slot per decision question (`key: @`).
    - All decision slots (`boolean`/`noul`, `choice`, and `score`) are resolved **simultaneously in a single forward pass (`steps=1`, `think=0`)** on a single G4 GPU. Evaluating 1 question takes `55.0 ms`; evaluating up to 8–10 questions simultaneously takes `57–62 ms` (`< 7 ms` marginal overhead across all questions).
 2. **Exact Calibrated Log-Probability & Hesitation Readout**:
-   - At each `@` slot, `dgem` extracts the exact softmax distribution over that question's valid single-token vocabulary (`yes`/`no`, `A`..`Z`, or `1`..`9`), applies **5-Fold Cross-Validated Post-Hoc Temperature Scaling ($T^*$)** fitted on `60–250` historical records, and computes **Normalized Shannon Entropy (Hesitation %)**:
-     $$\tilde{H}(p) = \frac{-\sum_{k=1}^{K} p_k \ln p_k}{\ln K} \in [0, 1]$$
+   - At each `@` slot, `dgem` extracts the exact softmax distribution over that question's valid single-token vocabulary (`yes`/`no`, `A`..`Z`, or `1`..`9`), applies **5-Fold Cross-Validated Post-Hoc Temperature Scaling (`T = 1.15`)** fitted on `60–250` historical records, and computes **Normalized Shannon Entropy (Hesitation %)**:
+     `Hesitation(p) = (-sum(p_k * ln(p_k))) / ln(K)` (scaled `0.00` to `1.00`, or `0%` to `100%`)
 3. **Surgical Per-Slot Stage 2 Escalation to Vertex AI `gemini-3.5-flash-lite`**:
-   - On clear, routine records (`75%–85%` of enterprise volume where $\tilde{H} < \tau$, e.g., $\tau = 0.16$), Stage 1 returns immediately in **`57 ms`** with **`100.0%` calibrated accuracy** on non-escalated slots.
-   - When an individual slot exhibits high hesitation ($\tilde{H} \ge 0.16$) due to conflicting attributes or borderline policy rules, `dgem-gateway` **escalates only that specific ambiguous slot** to **Vertex AI Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`)**, passing Stage 1's calibrated probability distribution as a soft Bayesian prior (`stage2_prior: "soft"`).
+   - On clear, routine records (`75%–85%` of enterprise volume where hesitation is below the `16%` (`0.16`) threshold), Stage 1 returns immediately in **`57 ms`** with high confidence on non-escalated slots.
+   - When an individual slot exhibits high hesitation (`>= 16%` / `0.16`) due to conflicting attributes or borderline policy rules, `dgem-gateway` **escalates only that specific ambiguous slot** to **Vertex AI Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`)**, passing Stage 1's calibrated probability distribution as a soft Bayesian prior (`stage2_prior: "soft"`).
 4. **Pattern 4 Hybrid Always-On Baseline (`0s` Cold Start) + 60%–91% Lower Spot GPU Burst TCO**:
    - Using **Architectural Pattern 4 (`hybrid_baseline_plus_burst` in [`08-dgem-hybrid-baseline-burst.yaml`](../k8s/08-dgem-hybrid-baseline-burst.yaml))**, `dgem` keeps **`1+` always-on On-Demand baseline replica (`dgem-engine-baseline`)** warm 24/7 on a cost-optimized **`g4-standard-24` (`1/2` vGPU, `48 GB GDDR7` at `~50%` lower On-Demand cost)** or **`g4-standard-48` (`96 GB`)** node so the model is **100% always available with zero cold-start delay**, while scaling **`dgem-engine-burst` (`1..8` HPA replicas)** across **GKE Spot G4 GPUs** (`60%–91%` discount) and **DWS Flex-Start** via `ComputeClass/dgem-g4-priority`.
 
 ---
 
-### 1.2 Empirical GKE G4 Performance & TCO Scorecard
+### 1.2 Observed GKE G4 Performance & TCO Scorecard
 
 The table below summarizes verified live benchmarks recorded on a Google Kubernetes Engine (`1.35.8-gke.1518000+`, Rapid Channel) G4 cluster (`NVIDIA RTX PRO 6000 Blackwell Server Edition`):
 
-| Metric Category | Benchmark Measurement | Empirical GKE G4 Result | Business & Operational Impact |
+| Metric Category | Benchmark Measurement | Observed GKE G4 Benchmark | Business & Operational Impact |
 | :--- | :--- | :--- | :--- |
 | **Stage 1 GPU Latency** | Multi-Slot Single-Pass Forward Latency (`gpu_forward_ms`) | **`57 ms` p50** (`57.1–58.0 ms` mean, `59–61 ms` p95) | Evaluates 3–8 policy questions simultaneously in one pass (`O(1)` scaling). |
 | **Throughput per G4 GPU** | Single Replica (`MAX_SEQS=32`) vs. NVIDIA MPS (`2` Clients/GPU) | **`50+ items/sec`** single / **`75–85+ items/sec`** (`1.4×–1.7×` with MPS) | `4.32M–7.34M+` multi-attribute SKU/ticket decisions per day per `96 GB` G4 GPU. |
 | **Fast-Start Weight Load** | vLLM `17.53 GiB` NVFP4 Load from Hyperdisk Snapshot + Page/SHM Cache | **`7.91 s`** (down from `87.96 s` cold download — **`11.1x` speedup**) | Rapid Spot GPU preemption recovery without re-downloading weights from Cloud Storage. |
 | **Pod Scheduling to Running** | Cached Container Image + Attached Hyperdisk Snapshot PVC | **`2.0 s`** (down from `45.0 s` cold pull — **`22.5x` speedup**) | Eliminates container layer unpack bottleneck on replacement nodes. |
-| **Calibration Quality** | 5-Fold Cross-Validated Post-Hoc Temperature Fit ($T^*$) | **ECE reduced by `38.7%–50.0%`**, **NLL reduced by `38.3%–40.6%`** | Aligns predicted slot confidence with true empirical accuracy without altering top-1 winners. |
-| **Cascade Precision** | Stage 1 Accuracy on Non-Escalated Slots ($\tilde{H} < 0.16$) | **`100.0%` accuracy** (`0` errors on clear Stage 1 slots in `support_triage`) | Guarantees high precision on automated fast-path approvals while routing edge cases to Gemini 3.5 Flash-Lite. |
+| **Calibration Quality** | 5-Fold Cross-Validated Post-Hoc Temperature Fit (`T = 1.15`) | **ECE reduced by `38.7%–50.0%`**, **NLL reduced by `38.3%–40.6%`** | Aligns predicted slot confidence with observed accuracy without altering top-1 winners. |
+| **Cascade Routing** | Stage 1 Fast-Path Resolution Below `16%` (`0.16`) Hesitation Gate | **`~75%–85%` of slots resolved in Stage 1** | Routine slots resolve in `57 ms` while routing borderline edge cases (`~15%–25%`) to Gemini 3.5 Flash-Lite. |
 | **VRAM Utilization & Sharing** | `17.53 GiB` NVFP4 Weights + `12 GiB` KV Cache + Runtime | **`~36.0 GiB`** (fits `g4-standard-24` `48 GB` vGPU OR `2–3` replicas on `g4-standard-48` `96 GB` via MPS/MIG) | Right-size 24/7 baseline on `g4-standard-24` (`~50%` lower cost) and run 2–3× density on `g4-standard-48`. |
 
 ---
@@ -84,20 +84,20 @@ flowchart LR
     Check -->|"Yes (Ambiguous Slot Only)"| Gemini --> S2Out
 ```
 
-### 2.1 Parallel Block Denoising Over a 128-Token Canvas ($O(1)$ vs. $O(N)$)
+### 2.1 Parallel Block Denoising Over a 128-Token Canvas (`O(1)` vs. `O(N)`)
 In autoregressive models, generating a 4-field structured JSON object requires sequentially sampling `40+` tokens where each token attends only causally to past tokens. In contrast, `dgem` uses **Discrete Block Diffusion**:
 1. **`document_first` Causal Prefix**: The input payload (`<user_text>`, such as a retail SKU specification, support ticket, or security log) is placed at the start of the prompt so vLLM's prefix cache can reuse the KV state across multi-pass or tournament calls, followed by `<instructions>` containing the numbered decision questions.
 2. **Bidirectional Diffusion Canvas (`CANVAS=128`)**: The assistant turn is pre-seeded with a structured YAML/JSON skeleton containing a single `@` mask token at each answer position (`urgent: @`, `team: @`, `sentiment: @`).
 3. **Single Denoising Step (`steps=1`, `think=0`)**: In a single forward pass through `DiffusionGemma 26B-A4B NVFP4`, bidirectional attention across the 128-token canvas resolves all `@` mask positions simultaneously.
 
-### 2.2 Exact Single-Token Logit Readout & 2-Stage Tournament Brackets ($>26$ Categories)
+### 2.2 Exact Single-Token Logit Readout & 2-Stage Tournament Brackets (`>26` Categories)
 Because multi-token option strings suffer from token-length bias, `dgem` maps every question type to a **restricted single-token vocabulary** at its `@` mask slot:
 - **Boolean / `noul` (`type: "boolean"`)**: Extracts exact logits over `{"yes", "no"}` (with automatic `isolate: "auto"` sub-batching when multiple boolean questions appear together to prevent cross-slot polarity bleed).
-- **Categorical Choice (`type: "choice"`, $\le 26$ options)**: Maps options to single capital letters `A` through `Z` (`MaxOptionsPerSlot = 26`) and extracts the exact softmax distribution over the active letters in **1 forward pass**.
-- **Wide Categorical Choice (`type: "choice"`, $27 \le K \le 255$ options — 2-Stage Bracket Tournament)**:
+- **Categorical Choice (`type: "choice"`, `<= 26` options)**: Maps options to single capital letters `A` through `Z` (`MaxOptionsPerSlot = 26`) and extracts the exact softmax distribution over the active letters in **1 forward pass**.
+- **Wide Categorical Choice (`type: "choice"`, `27..255` options — 2-Stage Bracket Tournament)**:
   When a taxonomy exceeds 26 categories (such as the **32-category Google Product Taxonomy** in `retail_deep_taxonomy`), `dgem` automatically executes a **2-Stage Tournament Bracket** (`~114 ms` total across 2 GPU passes).
 - **Likert Scale / Rating (`type: "score"`, scale `1..5` or `1..9`)**: Extracts probabilities over single-digit integers `1`..`K` and computes both the discrete winner and the continuous **probability-weighted expected value**:
-  $$\mathbb{E}[\text{Score}] = \sum_{v=1}^{K} v \cdot P(v)$$
+  `E[Score] = sum(v * P(v))` for `v = 1..K`
 
 ---
 

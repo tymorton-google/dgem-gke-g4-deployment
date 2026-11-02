@@ -15,7 +15,7 @@
 ---
 
 ### 1. System-1 Discrete Diffusion KPIs & Calibrated Stage-2 Cascade
-*Single-pass `O(1)` 128-token bidirectional block denoising (`57 ms` p50, `10.5x` faster than sequential 27B autoregressive decoding), `17.53 GiB` 4-bit NVFP4 footprint (`7.91s` Hyperdisk snapshot load), and `100%` empirical routing accuracy below the $\tau = 0.16$ normalized Shannon entropy gate.*
+*Single-pass `O(1)` 128-token bidirectional block denoising (`57 ms` p50, `10.5x` faster than sequential 27B autoregressive decoding), `17.53 GiB` 4-bit NVFP4 footprint (`7.91s` Hyperdisk snapshot load), and temperature-calibrated confidence scoring (`T = 1.15`) that resolves ~75%–85% of routine slots in Stage 1 below the `16%` (`0.16`) hesitation threshold.*
 
 <p align="center">
   <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_bento_motion_explainer.html">
@@ -68,7 +68,7 @@
   </a>
 </p>
 
-#### 3C. 5-Stage System-1 Discrete Diffusion & Calibrated Hesitation Gate ($H(p)/\ln K \ge \tau$)
+#### 3C. 5-Stage System-1 Discrete Diffusion & Calibrated Hesitation Gate (`16%` Hesitation Threshold)
 <p align="center">
   <a href="https://tymorton-google.github.io/dgem-gke-g4-deployment/dgem_system1_architecture_explainer.html">
     <picture>
@@ -105,22 +105,22 @@ Production-ready Google Kubernetes Engine (GKE) deployment blueprints, Fast-Star
 
 ## 1. Executive Summary & Verified GKE G4 Scorecard
 
-Traditional autoregressive LLMs decode tokens sequentially ($O(N)$ forward passes), creating high tail latency and GPU cost for structured multi-question classification, merchandising compliance, and triage pipelines.
+Traditional autoregressive LLMs decode tokens sequentially (`O(N)` forward passes), creating high tail latency and GPU cost for structured multi-question classification, merchandising compliance, and triage pipelines.
 
 **`dgem` (`DiffusionGemma 26B-A4B-it-NVFP4`)** reframes high-volume operational decisioning as a **System-1 / System-2 Cascade** on Google Cloud:
-1. **Stage 1 — System-1 Discrete Diffusion on GKE G4 GPUs (`g4-standard-24` 48GB vGPU / `g4-standard-48` 96GB Full GPU)**: Evaluates up to **8 structured questions simultaneously in a single `57 ms` forward pass** over a 128-token bidirectional diffusion canvas, returning exact token-level probability distributions for booleans (`noul`), categorical choices (`choice`, including 2-stage tournament brackets for $>26$ categories), and 1–5 Likert scales (`score`).
-2. **Post-Hoc Domain Temperature Scaling ($T^*$)**: Fits per-slot-type temperatures ($T^*_{\text{noul}}, T^*_{\text{choice}}, T^*_{\text{score}}$) on 60–250 historical domain records via 5-fold cross-validation (`p_k(T^*) = p_k^(1/T^*) / Z`), reducing Expected Calibration Error (ECE) by **30%–50%** with zero GPU retraining.
-3. **Stage 2 — Selective Per-Slot Escalation to Vertex AI `gemini-3.5-flash-lite`**: Computes Normalized Shannon Entropy ($\text{Hesitation} = H(p)/\ln K \in [0, 1]$) on every slot. Roughly **75%–85%** of routine slots resolve immediately in Stage 1 (`57 ms`); only high-hesitation slots ($\ge \tau = 0.16$) escalate to **Vertex AI Gemini 3.5 Flash-Lite** with Stage 1's top-2 distribution injected as a soft prior (`stage2_prior: "soft"`).
+1. **Stage 1 — System-1 Discrete Diffusion on GKE G4 GPUs (`g4-standard-24` 48GB vGPU / `g4-standard-48` 96GB Full GPU)**: Evaluates up to **8 structured questions simultaneously in a single `57 ms` forward pass** over a 128-token bidirectional diffusion canvas, returning exact token-level probability distributions for booleans (`noul`), categorical choices (`choice`, including 2-stage tournament brackets for `>26` categories), and 1–5 Likert scales (`score`).
+2. **Post-Hoc Domain Temperature Scaling (`T = 1.15`)**: Fits per-slot-type temperatures (`T_noul`, `T_choice`, `T_score`) on 60–250 historical domain records via 5-fold cross-validation (`p_k(T) = p_k^(1/T) / Z`), reducing Expected Calibration Error (ECE) by **30%–50%** with zero GPU retraining.
+3. **Stage 2 — Selective Per-Slot Escalation to Vertex AI `gemini-3.5-flash-lite`**: Computes Normalized Shannon Entropy (`Hesitation = H(p) / ln(K)`, scaled `0%–100%`) on every slot. Roughly **75%–85%** of routine slots resolve immediately in Stage 1 (`57 ms`); only high-hesitation slots (`>= 16%` hesitation threshold, i.e., `0.16`) escalate to **Vertex AI Gemini 3.5 Flash-Lite** with Stage 1's top-2 distribution injected as a soft prior (`stage2_prior: "soft"`).
 4. **Pattern 4 Hybrid Always-On Baseline (`0s` Cold Start) + Elastic Spot/DWS Burst**: Pins **`dgem-engine-baseline`** (`1+` warm replica) to an On-Demand `g4-standard-24` (`48 GB` fractional 1/2 vGPU at `~50%` lower On-Demand cost) or `g4-standard-48` (`96 GB`) node for **100% zero-cold-start availability**, while scaling **`dgem-engine-burst`** (`1..8` HPA replicas) onto **GKE Spot G4** (`60%–91%` discount) and **DWS Flex-Start** via `ComputeClass/dgem-g4-priority`. On `g4-standard-48` (`96 GB`), optional **NVIDIA MPS (`2–3` shared clients/GPU)** delivers **`1.4×–1.7×` higher batch throughput** and **Hardware MIG (`2g.48gb`)** provides **2 hardware-isolated 48 GB slices per GPU**.
 
-| Benchmark Metric (`NVIDIA RTX PRO 6000 Blackwell` on GKE 1.35.8+) | Empirical Result | Production Impact |
+| Benchmark Metric (`NVIDIA RTX PRO 6000 Blackwell` on GKE 1.35.8+) | Observed Benchmark | Production Impact |
 | :--- | :--- | :--- |
 | **Stage 1 Multi-Slot GPU Forward Pass (`gpu_forward_ms`)** | **`57 ms` p50** (`57.1–58.0 ms` mean, `59–61 ms` p95) | Evaluates 3–4 structured questions per item in a single pass (`~12.5 items/sec` sequential, `50+ items/sec` batched, `75–85+ items/sec` with 2× MPS) |
 | **Fast-Start `17.53 GiB` NVFP4 Weight Hydration (`model_runner.py`)** | **`7.91 s`** (vs. `87.96 s` cold download) | **`11.1x` faster** vLLM weight load using pre-hydrated Hyperdisk Balanced/ML `VolumeSnapshot` + `/dev/shm` |
-| **Pod Scheduled $\rightarrow$ Container `Running` (Warm Replacement)** | **`2.0 s`** (vs. `45.0 s` cold pull) | **`22.5x` faster** container startup with GKE Image Streaming + Secondary Boot Disk (`CONTAINER_IMAGE_CACHE`) |
-| **Domain Temperature Calibration ($T^*$)** | **ECE `-30.0%` to `-50.0%`**, **NLL `-38.3%` to `-40.6%`** | Aligns Stage 1 confidence with empirical accuracy across Support, Security, and Retail Catalog schemas |
-| **Stage 1 Direct Accuracy (Below Hesitation Gate $\tau = 0.16$)** | **`98.2% – 100.0%`** | Ambiguous edge cases (`~15%–25%` of slots) selectively escalate to `gemini-3.5-flash-lite` (`~930–1,150 ms`) |
-| **Pattern 4 Hybrid Baseline + 3-Tier Spot/DWS Burst Resilience** | **`100%` Uptime (`0s` Cold Start) + `60%–91%` Spot Burst Savings** | Always-warm On-Demand baseline (`g4-standard-24` 48GB vGPU) + HPA burst across `Spot` $\rightarrow$ `DWS Flex` $\rightarrow$ `On-Demand` |
+| **Pod Scheduled -> Container `Running` (Warm Replacement)** | **`2.0 s`** (vs. `45.0 s` cold pull) | **`22.5x` faster** container startup with GKE Image Streaming + Secondary Boot Disk (`CONTAINER_IMAGE_CACHE`) |
+| **Domain Temperature Calibration (`T = 1.15`)** | **ECE `-30.0%` to `-50.0%`**, **NLL `-38.3%` to `-40.6%`** | Aligns Stage 1 probability estimates with observed accuracy across Support, Security, and Retail Catalog schemas |
+| **Stage 1 Fast-Path Resolution (Below `16%` / `0.16` Hesitation Gate)** | **`~75%–85%` of slots resolved in Stage 1** | Routine slots resolve in `57 ms`; ambiguous edge cases (`~15%–25%` of slots) selectively escalate to `gemini-3.5-flash-lite` (`~930–1,150 ms`) |
+| **Pattern 4 Hybrid Baseline + 3-Tier Spot/DWS Burst Resilience** | **`100%` Uptime (`0s` Cold Start) + `60%–91%` Spot Burst Savings** | Always-warm On-Demand baseline (`g4-standard-24` 48GB vGPU) + HPA burst across `Spot` -> `DWS Flex` -> `On-Demand` |
 
 ---
 
@@ -184,7 +184,7 @@ dgem/
 ## 3. Quickstart: Deploy in Your Google Cloud Environment
 
 ### Prerequisites
-- A Google Cloud project with billing enabled and GPU quota for **NVIDIA RTX PRO 6000 (`GPUS_ALL_REGIONS` and `NVIDIA_RTX_PRO_6000` $\ge 1$)** in `us-central1` (`us-central1-b`, `us-central1-c`, `us-central1-f`).
+- A Google Cloud project with billing enabled and GPU quota for **NVIDIA RTX PRO 6000 (`GPUS_ALL_REGIONS` and `NVIDIA_RTX_PRO_6000 >= 1`)** in `us-central1` (`us-central1-b`, `us-central1-c`, `us-central1-f`).
 - `gcloud` CLI, `kubectl`, `gke-gcloud-auth-plugin`, `terraform >= 1.6`, and `python3 >= 3.10`.
 
 ### Option A: One-Command `gcloud` + `kubectl` Deployment (`--mode hybrid-baseline-burst`)
@@ -231,7 +231,7 @@ terraform apply
 This bundle includes **3 production Retail Catalog Enrichment policy templates** and **3 synthetic SKU dataset tiers (`60`, `100`, and `250` SKUs)**:
 
 1. **`retail_merchandising_compliance.json.tmpl`**: Simultaneous 4-slot readout of `brand_safety_compliant` (`boolean`), `primary_department` (`choice` A–F), `target_season` (`choice` A–D), and `catalog_completeness_score` (`score` 1–5).
-2. **`retail_deep_taxonomy.json.tmpl`**: Classifies products across **32 fine-grained Google Product Taxonomy nodes (`cat_01`..`cat_32`)** using `dgem`'s **2-Stage Tournament Bracket Engine** (splitting 32 options into balanced brackets $\le 26$ tokens before a championship pass), alongside `material_primary` (`choice` A–F), `price_tier` (`choice` A–D), and `gift_eligible` (`boolean`).
+2. **`retail_deep_taxonomy.json.tmpl`**: Classifies products across **32 fine-grained Google Product Taxonomy nodes (`cat_01`..`cat_32`)** using `dgem`'s **2-Stage Tournament Bracket Engine** (splitting 32 options into balanced brackets `<= 26` tokens before a championship pass), alongside `material_primary` (`choice` A–F), `price_tier` (`choice` A–D), and `gift_eligible` (`boolean`).
 3. **`retail_catalog_qa.json.tmpl`**: Automated pre-publish QA gate evaluating `auto_publish_approved` (`boolean`), `primary_defect_type` (`choice`: `clean_no_defect`, `title_spec_conflict`, `missing_critical_attributes`, `policy_or_claim_violation`), and `seo_readiness_score` (`score` 1–5).
 
 ### Run Domain Temperature Fitting & Live Cascade Demo
